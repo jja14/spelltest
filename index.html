@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -158,142 +157,139 @@
   <div class="wrap">
     <div id="syncBanner" class="banner">
       <strong>Sync mode:</strong> trying to connect automatically. If the site is opened from a local file and sync does not connect, the app will still work locally.
+    </div><div class="grid-top">
+  <div class="card">
+    <h1>Simple Spelling Practice</h1>
+    <p class="muted">A distraction-free spelling website for George and Ben. Hear the word, type the spelling, build mastery over time, and track progress across the family.</p>
+  </div>
+  <div class="card">
+    <div class="tiny muted">Active user</div>
+    <h3 id="activeUserName">George</h3>
+    <div class="muted"><span id="activeListName">Year 3–4</span> · <span id="activeCount">10</span> words per round</div>
+  </div>
+</div>
+
+<div class="grid-main">
+  <div class="card">
+    <div class="controls">
+      <button type="button" class="user-btn active" data-user="George">George</button>
+      <button type="button" class="user-btn" data-user="Ben">Ben</button>
+      <button type="button" class="user-btn" data-user="Lucy">Lucy</button>
+      <button type="button" class="user-btn" data-user="James">James</button>
+      <button type="button" class="year-btn active" data-year="Year 3–4">Year 3–4</button>
+      <button type="button" class="year-btn" data-year="Year 5–6">Year 5–6</button>
+      <button type="button" class="count-btn" data-count="5">5 words</button>
+      <button type="button" class="count-btn active" data-count="10">10 words</button>
+      <button type="button" class="count-btn" data-count="15">15 words</button>
+      <button type="button" id="toggleAutoSpeak">Auto-speak on</button>
+      <button type="button" id="newRoundBtn" class="secondary">New round</button>
+      <button type="button" id="focusRoundBtn" class="secondary">Smart practice</button>
     </div>
 
-    <div class="grid-top">
-      <div class="card">
-        <h1>Simple Spelling Practice</h1>
-        <p class="muted">A distraction-free spelling website for George and Ben. Hear the word, type the spelling, build mastery over time, and track progress across the family.</p>
+    <div id="startView" class="panel section">
+      <h2>Ready to begin?</h2>
+      <p class="muted">Choose a year group, then press start. Smart practice automatically targets weak, improving, and unattempted words first.</p>
+      <button type="button" id="startBtn" class="primary">Start practice</button>
+    </div>
+
+    <div id="practiceView" class="hidden section">
+      <div class="row muted" style="justify-content: space-between;">
+        <span id="wordPosition">Word 1 of 10</span>
+        <span id="answeredCount">0 answered</span>
       </div>
-      <div class="card">
-        <div class="tiny muted">Active user</div>
-        <h3 id="activeUserName">George</h3>
-        <div class="muted"><span id="activeListName">Year 3–4</span> · <span id="activeCount">10</span> words per round</div>
+      <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
+
+      <div class="panel section">
+        <p><strong>Listen to the word</strong></p>
+        <div class="controls" style="justify-content: center;">
+          <button type="button" id="sayWordBtn" class="primary">Say word</button>
+          <button type="button" id="speakAnswerBtn" class="hidden">Speak answer</button>
+        </div>
+        <p id="voiceStatus" class="tiny muted" style="margin-top: 14px;">Loading voice...</p>
+      </div>
+
+      <div class="section">
+        <label for="answerInput"><strong>Type the spelling</strong></label>
+        <input id="answerInput" class="input" placeholder="Enter the word here" />
+      </div>
+
+      <div class="controls section">
+        <button type="button" id="checkBtn" class="primary">Check answer</button>
+        <button type="button" id="hearAgainBtn">Hear again</button>
       </div>
     </div>
 
-    <div class="grid-main">
-      <div class="card">
-        <div class="controls">
-          <button type="button" class="user-btn active" data-user="George">George</button>
-          <button type="button" class="user-btn" data-user="Ben">Ben</button>
-          <button type="button" class="user-btn" data-user="Lucy">Lucy</button>
-          <button type="button" class="user-btn" data-user="James">James</button>
-          <button type="button" class="year-btn active" data-year="Year 3–4">Year 3–4</button>
-          <button type="button" class="year-btn" data-year="Year 5–6">Year 5–6</button>
-          <button type="button" class="count-btn" data-count="5">5 words</button>
-          <button type="button" class="count-btn active" data-count="10">10 words</button>
-          <button type="button" class="count-btn" data-count="15">15 words</button>
-          <button type="button" id="toggleAutoSpeak">Auto-speak on</button>
-          <button type="button" id="newRoundBtn" class="secondary">New round</button>
-          <button type="button" id="focusRoundBtn" class="secondary">Smart practice</button>
+    <div id="resultsView" class="hidden section">
+      <div class="panel">
+        <h2>Round complete</h2>
+        <p class="muted">A clear summary with exact score and overall spelling accuracy.</p>
+      </div>
+
+      <div class="summary section">
+        <div class="summary-box">
+          <div class="tiny muted">Exact score</div>
+          <div id="exactScore" class="big">0/0</div>
         </div>
-
-        <div id="startView" class="panel section">
-          <h2>Ready to begin?</h2>
-          <p class="muted">Choose a year group, then press start. Smart practice automatically targets weak, improving, and unattempted words first.</p>
-          <button type="button" id="startBtn" class="primary">Start practice</button>
+        <div class="summary-box">
+          <div class="tiny muted">Average accuracy</div>
+          <div id="averageAccuracy" class="big">0%</div>
         </div>
-
-        <div id="practiceView" class="hidden section">
-          <div class="row muted" style="justify-content: space-between;">
-            <span id="wordPosition">Word 1 of 10</span>
-            <span id="answeredCount">0 answered</span>
-          </div>
-          <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
-
-          <div class="panel section">
-            <p><strong>Listen to the word</strong></p>
-            <div class="controls" style="justify-content: center;">
-              <button type="button" id="sayWordBtn" class="primary">Say word</button>
-              <button type="button" id="speakAnswerBtn" class="hidden">Speak answer</button>
-            </div>
-            <p id="voiceStatus" class="tiny muted" style="margin-top: 14px;">Loading voice...</p>
-          </div>
-
-          <div class="section">
-            <label for="answerInput"><strong>Type the spelling</strong></label>
-            <input id="answerInput" class="input" placeholder="Enter the word here" />
-          </div>
-
-          <div class="controls section">
-            <button type="button" id="checkBtn" class="primary">Check answer</button>
-            <button type="button" id="hearAgainBtn">Hear again</button>
-          </div>
-        </div>
-
-        <div id="resultsView" class="hidden section">
-          <div class="panel">
-            <h2>Round complete</h2>
-            <p class="muted">A clear summary with exact score and overall spelling accuracy.</p>
-          </div>
-
-          <div class="summary section">
-            <div class="summary-box">
-              <div class="tiny muted">Exact score</div>
-              <div id="exactScore" class="big">0/0</div>
-            </div>
-            <div class="summary-box">
-              <div class="tiny muted">Average accuracy</div>
-              <div id="averageAccuracy" class="big">0%</div>
-            </div>
-            <div class="summary-box">
-              <div class="tiny muted">User</div>
-              <div id="resultUserName" class="big" style="font-size: 1.4rem;">George</div>
-            </div>
-          </div>
-
-          <div id="resultsList" class="section"></div>
-          <div class="controls section">
-            <button type="button" id="retryBtn" class="primary">Try another round</button>
-          </div>
+        <div class="summary-box">
+          <div class="tiny muted">User</div>
+          <div id="resultUserName" class="big" style="font-size: 1.4rem;">George</div>
         </div>
       </div>
 
-      <div class="card">
-        <h3>Dashboard</h3>
-        <div class="pill">Smart practice prioritises red words first, then grey words, then yellow words.</div>
-        <div class="pill">The site remembers the last selected user on each device.</div>
-        <div class="pill">When sync connects, progress and heatmaps update across devices automatically.</div>
-
-        <div class="section summary-box">
-          <div><strong>Sync status</strong></div>
-          <p id="syncStatus" class="tiny muted" style="margin-top:14px;">Starting local app...</p>
-        </div>
-
-        <div class="section summary-box">
-          <div><strong>Progress</strong></div>
-          <p class="tiny muted">Each person's results are tracked separately.</p>
-          <p id="progressSummary" class="tiny muted" style="margin-top: 14px;">No saved progress yet.</p>
-        </div>
-
-        <div id="parentDashboard" class="section summary-box hidden">
-          <div><strong>Parent dashboard</strong></div>
-          <p class="tiny muted">Best viewed as Lucy or James.</p>
-          <div id="dashboardSummary" class="tiny muted">No dashboard data yet.</div>
-          <div id="dashboardGrid" class="dashboard-grid"></div>
-        </div>
-
-        <div class="section summary-box">
-          <div><strong>Word heatmap</strong></div>
-          <p class="tiny muted">Red means weak. Yellow means improving. Green means secure. Grey means not yet attempted.</p>
-          <div class="legend-row section" style="margin-top:12px;">
-            <div class="legend-chip" style="background:var(--red-soft);">Needs work</div>
-            <div class="legend-chip" style="background:var(--amber);">Improving</div>
-            <div class="legend-chip" style="background:var(--green-soft);">Secure</div>
-            <div class="legend-chip" style="background:var(--grey);">Not tried</div>
-          </div>
-          <div class="controls section" style="margin-top:12px;">
-            <button type="button" id="refreshHeatmapBtn">Refresh heatmap</button>
-          </div>
-          <p id="heatmapSummary" class="tiny muted" style="margin-top: 14px;">No heatmap data yet.</p>
-          <div id="heatmapGrid" class="heatmap-grid"></div>
-        </div>
+      <div id="resultsList" class="section"></div>
+      <div class="controls section">
+        <button type="button" id="retryBtn" class="primary">Try another round</button>
       </div>
     </div>
   </div>
 
-  <script>
+  <div class="card">
+    <h3>Dashboard</h3>
+    <div class="pill">Smart practice prioritises red words first, then grey words, then yellow words.</div>
+    <div class="pill">The site remembers the last selected user on each device.</div>
+    <div class="pill">When sync connects, progress and heatmaps update across devices automatically.</div>
+
+    <div class="section summary-box">
+      <div><strong>Sync status</strong></div>
+      <p id="syncStatus" class="tiny muted" style="margin-top:14px;">Starting local app...</p>
+    </div>
+
+    <div class="section summary-box">
+      <div><strong>Progress</strong></div>
+      <p class="tiny muted">Each person's results are tracked separately.</p>
+      <p id="progressSummary" class="tiny muted" style="margin-top: 14px;">No saved progress yet.</p>
+    </div>
+
+    <div id="parentDashboard" class="section summary-box hidden">
+      <div><strong>Parent dashboard</strong></div>
+      <p class="tiny muted">Best viewed as Lucy or James.</p>
+      <div id="dashboardSummary" class="tiny muted">No dashboard data yet.</div>
+      <div id="dashboardGrid" class="dashboard-grid"></div>
+    </div>
+
+    <div class="section summary-box">
+      <div><strong>Word heatmap</strong></div>
+      <p class="tiny muted">Red means weak. Yellow means improving. Green means secure. Grey means not yet attempted.</p>
+      <div class="legend-row section" style="margin-top:12px;">
+        <div class="legend-chip" style="background:var(--red-soft);">Needs work</div>
+        <div class="legend-chip" style="background:var(--amber);">Improving</div>
+        <div class="legend-chip" style="background:var(--green-soft);">Secure</div>
+        <div class="legend-chip" style="background:var(--grey);">Not tried</div>
+      </div>
+      <div class="controls section" style="margin-top:12px;">
+        <button type="button" id="refreshHeatmapBtn">Refresh heatmap</button>
+      </div>
+      <p id="heatmapSummary" class="tiny muted" style="margin-top: 14px;">No heatmap data yet.</p>
+      <div id="heatmapGrid" class="heatmap-grid"></div>
+    </div>
+  </div>
+</div>
+
+  </div>  <script>
     const WORD_SETS = {
       "Year 3–4": ["accident","actual","address","answer","appear","arrive","believe","bicycle","breath","breathe","build","busy","business","calendar","caught","centre","century","certain","circle","complete","consider","continue","decide","describe","different","difficult","disappear","early","earth","eight","eighth","enough","exercise","experience","experiment","extreme","famous","favourite","february","forward","forwards","fruit","grammar","group","guard","guide","heard","heart","height","history","imagine","increase","important","interest","island","knowledge","learn","length","library","material","medicine","mention","minute","natural","naughty","notice","occasion","occasionally","often","opposite","ordinary","particular","peculiar","perhaps","popular","position","possess","possession","possible","potatoes","pressure","probably","promise","purpose","quarter","question","recent","regular","reign","remember","sentence","separate","special","straight","strange","strength","suppose","surprise","therefore","though","although","thought","through","various","weight","woman","women"],
       "Year 5–6": ["accommodate","accompany","according","achieve","aggressive","amateur","ancient","apparent","appreciate","attached","available","average","awkward","bargain","bruise","category","cemetery","committee","communicate","community","competition","conscience","conscious","controversy","convenience","correspond","criticise","curiosity","definite","desperate","determined","develop","dictionary","disastrous","embarrass","environment","equip","equipment","especially","exaggerate","excellent","existence","explanation","familiar","foreign","forty","frequently","government","guarantee","harass","hindrance","identity","immediate","immediately","individual","interfere","interrupt","language","leisure","lightning","marvellous","mischievous","muscle","necessary","neighbour","nuisance","occupy","occur","opportunity","parliament","persuade","physical","prejudice","privilege","profession","programme","pronunciation","queue","recognise","recommend","relevant","restaurant","rhyme","rhythm","sacrifice","secretary","shoulder","signature","sincere","sincerely","soldier","stomach","sufficient","suggest","symbol","system","temperature","thorough","twelfth","variety","vegetable","vehicle","yacht"]
@@ -303,12 +299,12 @@
     const AUTO_SYNC = true;
     const FAMILY_SPACE_ID = 'balham-spelltest';
     const FIREBASE_CONFIG = {
-      apiKey: 'AIzaSyDJdUdL_kcAFt0NthL8LlrR0xCnyBgBwWg',
+      apiKey: 'AIzaSyAGmT95vIfLmyxjNdOlF1essC5tAyK6_Gc',
       authDomain: 'balham-spelltest.firebaseapp.com',
       projectId: 'balham-spelltest',
       storageBucket: 'balham-spelltest.firebasestorage.app',
       messagingSenderId: '37115750695',
-      appId: '1:37115750695:web:2af6a6287640bae991e102'
+      appId: '1:37115750695:web:934cff0b39edbf4b91e102'
     };
 
     let activeUser = 'George';
@@ -422,8 +418,8 @@
       appData.updatedAt = new Date().toISOString();
       saveLocalData();
       renderAll();
-      if (syncEnabled && firebaseDb && firebaseRef) {
-        firebaseDb.setDoc(firebaseRef, appData, { merge: true }).catch(err => updateSyncUI('Sync write failed: ' + err.message));
+      if (syncEnabled && firebaseRef) {
+        firebaseRef.set(appData, { merge: true }).catch(err => updateSyncUI('Sync write failed: ' + err.message));
       }
     }
 
@@ -636,6 +632,5 @@
     renderAll();
     updateSyncUI('Local app ready.');
     if (AUTO_SYNC) setupFirebaseSync();
-  </script>
-</body>
+  </script></body>
 </html>
