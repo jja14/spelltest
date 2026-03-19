@@ -274,12 +274,20 @@
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 12px;
-      margin-top: 12px;
     }
 
     .weak-list {
       margin: 10px 0 0 0;
       padding-left: 18px;
+    }
+
+    .visually-hidden-autofill {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
     }
 
     @media (max-width: 900px) {
@@ -361,15 +369,27 @@
 
           <div class="section">
             <label for="answerInput"><strong>Type the spelling</strong></label>
-            <input
-              id="answerInput"
-              class="input"
-              placeholder="Enter the word here"
-              spellcheck="false"
-              autocorrect="off"
-              autocomplete="off"
-              autocapitalize="off"
-            />
+            <form id="answerForm" autocomplete="off" onsubmit="return false;">
+              <input
+                type="text"
+                class="visually-hidden-autofill"
+                tabindex="-1"
+                aria-hidden="true"
+                autocomplete="off"
+              />
+              <input
+                id="answerInput"
+                class="input"
+                type="text"
+                inputmode="text"
+                name="spelling_answer_unique"
+                placeholder="Enter the word here"
+                spellcheck="false"
+                autocorrect="off"
+                autocomplete="off"
+                autocapitalize="off"
+              />
+            </form>
           </div>
 
           <div class="controls section">
@@ -1076,7 +1096,15 @@
       $('refreshHeatmapBtn').addEventListener('click', renderHeatmap);
 
       $('answerInput').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') submitAnswer();
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          submitAnswer();
+        }
+      });
+
+      $('answerForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitAnswer();
       });
 
       $('speakAnswerBtn').addEventListener('click', () => {
