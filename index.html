@@ -34,7 +34,27 @@
       font-family: Arial, Helvetica, sans-serif;
       background: radial-gradient(circle at top, #1f2937 0%, #0f172a 50%, #020617 100%);
       color: var(--text);
+      transition: background 0.35s ease, color 0.35s ease;
     }
+    body.theme-volcano {
+      background: radial-gradient(circle at top, #1f2937 0%, #0f172a 50%, #020617 100%);
+    }
+    body.theme-space {
+      background: radial-gradient(circle at top, #1e1b4b 0%, #0f172a 45%, #020617 100%);
+    }
+    body.theme-lightning {
+      background: radial-gradient(circle at top, #1e293b 0%, #0f172a 40%, #000814 100%);
+    }
+    body.theme-robot {
+      background: radial-gradient(circle at top, #0f766e 0%, #0f172a 45%, #020617 100%);
+    }
+    body.theme-ice {
+      background: radial-gradient(circle at top, #1d4ed8 0%, #0f172a 45%, #020617 100%);
+    }
+    body.theme-gold {
+      background: radial-gradient(circle at top, #92400e 0%, #0f172a 45%, #020617 100%);
+    }
+
     .wrap { max-width: 1300px; margin: 0 auto; padding: 20px; }
     .grid-top, .grid-main { display: grid; gap: 16px; }
     .grid-top { grid-template-columns: 1.3fr 0.7fr; margin-bottom: 16px; }
@@ -50,7 +70,7 @@
     h1 { font-size: 2rem; margin-bottom: 8px; }
     .muted { color: var(--muted); }
     .tiny { font-size: 0.86rem; }
-    .controls, .row, .result-actions, .legend-row, .streak-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .controls, .row, .result-actions, .legend-row, .streak-row, .theme-grid { display: flex; flex-wrap: wrap; gap: 10px; }
     button, input, select, textarea { font: inherit; }
     button {
       border: 1px solid var(--border);
@@ -118,7 +138,7 @@
     }
     textarea { min-height: 120px; resize: vertical; }
     .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .summary-box, .result-item, .dashboard-card {
+    .summary-box, .result-item, .dashboard-card, .theme-card {
       border: 1px solid var(--border);
       border-radius: 18px;
       background: rgba(15,23,42,0.95);
@@ -258,13 +278,39 @@
       85% { opacity: 1; transform: translateX(-50%) translateY(0); }
       100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
     }
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .theme-card.locked {
+      opacity: 0.7;
+      filter: grayscale(0.4);
+    }
+    .theme-card.unlocked {
+      box-shadow: 0 0 16px rgba(249,115,22,0.14);
+    }
+    .theme-preview {
+      height: 48px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .theme-preview.volcano { background: linear-gradient(135deg, #7f1d1d, #f97316, #facc15); }
+    .theme-preview.space { background: linear-gradient(135deg, #1e1b4b, #2563eb, #a855f7); }
+    .theme-preview.lightning { background: linear-gradient(135deg, #0f172a, #1d4ed8, #facc15); }
+    .theme-preview.robot { background: linear-gradient(135deg, #0f766e, #14b8a6, #94a3b8); }
+    .theme-preview.ice { background: linear-gradient(135deg, #1d4ed8, #38bdf8, #e0f2fe); }
+    .theme-preview.gold { background: linear-gradient(135deg, #78350f, #f59e0b, #fde68a); }
+    .unlock-note { margin-top: 8px; font-size: 0.78rem; color: var(--muted); }
     @media (max-width: 900px) {
-      .grid-top, .grid-main, .summary, .dashboard-grid { grid-template-columns: 1fr; }
+      .grid-top, .grid-main, .summary, .dashboard-grid, .theme-grid { grid-template-columns: 1fr; }
       .result-item { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
-<body>
+<body class="theme-volcano">
   <div class="celebration-layer" id="celebrationLayer"></div>
   <div class="wrap">
     <div id="syncBanner" class="banner">
@@ -388,7 +434,7 @@
         <h3>Dashboard</h3>
         <div class="pill">Boss Battle prioritises red words first, then grey words, then yellow words.</div>
         <div class="pill">Correct answers trigger mini blasts. Words that turn green get a bigger mastered explosion.</div>
-        <div class="pill">The site remembers the last selected user on each device.</div>
+        <div class="pill">Themes are unlocked by achievement and selected per user.</div>
 
         <div class="section summary-box">
           <div><strong>Sync status</strong></div>
@@ -399,6 +445,12 @@
           <div><strong>Progress</strong></div>
           <p class="tiny muted">Each person's results are tracked separately.</p>
           <p id="progressSummary" class="tiny muted" style="margin-top: 14px;">No saved progress yet.</p>
+        </div>
+
+        <div class="section summary-box">
+          <div><strong>Theme Locker</strong></div>
+          <p class="tiny muted">Earn themes by playing well. Volcano starts unlocked.</p>
+          <div id="themeGrid" class="theme-grid"></div>
         </div>
 
         <div id="parentDashboard" class="section summary-box hidden">
@@ -429,35 +481,30 @@
 
   <script>
     const WORD_SETS = {
-      "Year 3–4": [
-        "accident","actual","address","answer","appear","arrive","believe","bicycle","breath","breathe",
-        "build","busy","business","calendar","caught","centre","century","certain","circle","complete",
-        "consider","continue","decide","describe","different","difficult","disappear","early","earth","eight",
-        "eighth","enough","exercise","experience","experiment","extreme","famous","favourite","february","forward",
-        "forwards","fruit","grammar","group","guard","guide","heard","heart","height","history",
-        "imagine","increase","important","interest","island","knowledge","learn","length","library","material",
-        "medicine","mention","minute","natural","naughty","notice","occasion","occasionally","often","opposite",
-        "ordinary","particular","peculiar","perhaps","popular","position","possess","possession","possible","potatoes",
-        "pressure","probably","promise","purpose","quarter","question","recent","regular","reign","remember",
-        "sentence","separate","special","straight","strange","strength","suppose","surprise","therefore","though",
-        "although","thought","through","various","weight","woman","women"
-      ],
-      "Year 5–6": [
-        "accommodate","accompany","according","achieve","aggressive","amateur","ancient","apparent","appreciate","attached",
-        "available","average","awkward","bargain","bruise","category","cemetery","committee","communicate","community",
-        "competition","conscience","conscious","controversy","convenience","correspond","criticise","curiosity","definite","desperate",
-        "determined","develop","dictionary","disastrous","embarrass","environment","equip","equipment","especially","exaggerate",
-        "excellent","existence","explanation","familiar","foreign","forty","frequently","government","guarantee","harass",
-        "hindrance","identity","immediate","immediately","individual","interfere","interrupt","language","leisure","lightning",
-        "marvellous","mischievous","muscle","necessary","neighbour","nuisance","occupy","occur","opportunity","parliament",
-        "persuade","physical","prejudice","privilege","profession","programme","pronunciation","queue","recognise","recommend",
-        "relevant","restaurant","rhyme","rhythm","sacrifice","secretary","shoulder","signature","sincere","sincerely",
-        "soldier","stomach","sufficient","suggest","symbol","system","temperature","thorough","twelfth","variety",
-        "vegetable","vehicle","yacht"
-      ]
+      "Year 3–4": ["accident","actual","address","answer","appear","arrive","believe","bicycle","breath","breathe","build","busy","business","calendar","caught","centre","century","certain","circle","complete","consider","continue","decide","describe","different","difficult","disappear","early","earth","eight","eighth","enough","exercise","experience","experiment","extreme","famous","favourite","february","forward","forwards","fruit","grammar","group","guard","guide","heard","heart","height","history","imagine","increase","important","interest","island","knowledge","learn","length","library","material","medicine","mention","minute","natural","naughty","notice","occasion","occasionally","often","opposite","ordinary","particular","peculiar","perhaps","popular","position","possess","possession","possible","potatoes","pressure","probably","promise","purpose","quarter","question","recent","regular","reign","remember","sentence","separate","special","straight","strange","strength","suppose","surprise","therefore","though","although","thought","through","various","weight","woman","women"],
+      "Year 5–6": ["accommodate","accompany","according","achieve","aggressive","amateur","ancient","apparent","appreciate","attached","available","average","awkward","bargain","bruise","category","cemetery","committee","communicate","community","competition","conscience","conscious","controversy","convenience","correspond","criticise","curiosity","definite","desperate","determined","develop","dictionary","disastrous","embarrass","environment","equip","equipment","especially","exaggerate","excellent","existence","explanation","familiar","foreign","forty","frequently","government","guarantee","harass","hindrance","identity","immediate","immediately","individual","interfere","interrupt","language","leisure","lightning","marvellous","mischievous","muscle","necessary","neighbour","nuisance","occupy","occur","opportunity","parliament","persuade","physical","prejudice","privilege","profession","programme","pronunciation","queue","recognise","recommend","relevant","restaurant","rhyme","rhythm","sacrifice","secretary","shoulder","signature","sincere","sincerely","soldier","stomach","sufficient","suggest","symbol","system","temperature","thorough","twelfth","variety","vegetable","vehicle","yacht"]
     };
 
-    const DEFAULT_DATA = { progress: { George: [], Ben: [], Lucy: [], James: [] }, updatedAt: null };
+    const THEME_DEFS = {
+      volcano: { name: 'Volcano', unlockText: 'Starter theme', requirement: () => true },
+      space: { name: 'Space', unlockText: 'Streak of 5', requirement: (m) => m.bestStreak >= 5 },
+      lightning: { name: 'Lightning', unlockText: '10 secure words', requirement: (m) => m.secureWords >= 10 },
+      robot: { name: 'Robot Lab', unlockText: 'Complete 5 rounds', requirement: (m) => m.rounds >= 5 },
+      ice: { name: 'Ice Cave', unlockText: '90%+ exact in one round', requirement: (m) => m.bestExact >= 90 },
+      gold: { name: 'Gold Mode', unlockText: 'Perfect Boss Battle', requirement: (m) => m.perfectBossBattle }
+    };
+
+    const DEFAULT_DATA = {
+      progress: { George: [], Ben: [], Lucy: [], James: [] },
+      themes: {
+        George: { unlocked: ['volcano'], selected: 'volcano' },
+        Ben: { unlocked: ['volcano'], selected: 'volcano' },
+        Lucy: { unlocked: ['volcano'], selected: 'volcano' },
+        James: { unlocked: ['volcano'], selected: 'volcano' }
+      },
+      updatedAt: null
+    };
+
     const AUTO_SYNC = true;
     const FAMILY_SPACE_ID = 'balham-spelltest';
     const FIREBASE_CONFIG = {
@@ -484,6 +531,7 @@
     let firebaseReady = false;
     let firebaseRef = null;
     let currentStreak = 0;
+    let bestRoundStreak = 0;
     let lastHeatmapStates = {};
 
     const $ = (id) => document.getElementById(id);
@@ -496,9 +544,15 @@
       const shaped = deepClone(DEFAULT_DATA);
       if (data && typeof data === 'object') {
         shaped.progress = Object.assign({}, shaped.progress, data.progress || {});
+        shaped.themes = Object.assign({}, shaped.themes, data.themes || {});
         shaped.updatedAt = data.updatedAt || null;
       }
-      ['George','Ben','Lucy','James'].forEach(name => { if (!Array.isArray(shaped.progress[name])) shaped.progress[name] = []; });
+      ['George','Ben','Lucy','James'].forEach(name => {
+        if (!Array.isArray(shaped.progress[name])) shaped.progress[name] = [];
+        if (!shaped.themes[name]) shaped.themes[name] = { unlocked: ['volcano'], selected: 'volcano' };
+        if (!Array.isArray(shaped.themes[name].unlocked) || !shaped.themes[name].unlocked.length) shaped.themes[name].unlocked = ['volcano'];
+        if (!shaped.themes[name].selected) shaped.themes[name].selected = shaped.themes[name].unlocked[0];
+      });
       return shaped;
     }
     function loadLocalData() {
@@ -524,20 +578,16 @@
       const dp = Array.from({ length: rows }, () => Array(cols).fill(0));
       for (let i = 0; i < rows; i++) dp[i][0] = i;
       for (let j = 0; j < cols; j++) dp[0][j] = j;
-      for (let i = 1; i < rows; i++) {
-        for (let j = 1; j < cols; j++) {
-          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-          dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
-        }
+      for (let i = 1; i < rows; i++) for (let j = 1; j < cols; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
       }
       return dp[a.length][b.length];
     }
     function accuracyScore(answer, target) {
-      const a = answer.trim().toLowerCase();
-      const b = target.trim().toLowerCase();
+      const a = answer.trim().toLowerCase(), b = target.trim().toLowerCase();
       if (!a) return 0;
-      const distance = levenshtein(a, b);
-      const maxLen = Math.max(a.length, b.length);
+      const distance = levenshtein(a, b), maxLen = Math.max(a.length, b.length);
       return maxLen ? Math.max(0, Math.round((1 - distance / maxLen) * 100)) : 100;
     }
     function getPool() { return WORD_SETS[activeList] || []; }
@@ -550,18 +600,13 @@
       if (!word || !('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance('Spell the word ' + word + '. The word is ' + word + '. Please type it.');
-      utterance.lang = 'en-GB';
-      utterance.rate = 0.78;
-      utterance.pitch = 1;
-      const voice = getSpeechVoice();
-      if (voice) utterance.voice = voice;
+      utterance.lang = 'en-GB'; utterance.rate = 0.78; utterance.pitch = 1;
+      const voice = getSpeechVoice(); if (voice) utterance.voice = voice;
       window.speechSynthesis.speak(utterance);
     }
     function updateSyncUI(message) {
       if (message) $('syncStatus').textContent = message;
-      $('syncBanner').innerHTML = syncEnabled
-        ? '<strong>Sync mode:</strong> connected across devices.'
-        : '<strong>Sync mode:</strong> local mode' + (firebaseReady ? ' with auto-sync available.' : ' only.');
+      $('syncBanner').innerHTML = syncEnabled ? '<strong>Sync mode:</strong> connected across devices.' : '<strong>Sync mode:</strong> local mode' + (firebaseReady ? ' with auto-sync available.' : ' only.');
     }
     function getTitleForStreak(streak) {
       if (streak >= 10) return 'Unstoppable';
@@ -569,12 +614,18 @@
       if (streak >= 3) return 'On a roll';
       return 'Ready';
     }
+    function getThemeState(user) { return appData.themes[user] || { unlocked: ['volcano'], selected: 'volcano' }; }
+    function applyTheme(user) {
+      const selected = getThemeState(user).selected || 'volcano';
+      document.body.className = 'theme-' + selected;
+    }
     function updateHeader() {
       $('activeUserName').textContent = activeUser;
       $('activeListName').textContent = activeList;
       $('activeCount').textContent = String(wordsPerRound);
       $('streakPill').textContent = 'Streak: ' + currentStreak;
       $('titlePill').textContent = getTitleForStreak(currentStreak);
+      applyTheme(activeUser);
     }
     function updateButtons() {
       userButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.user === activeUser));
@@ -638,6 +689,64 @@
         return { word, priority, avgAccuracy };
       }).sort((a,b) => b.priority !== a.priority ? b.priority - a.priority : a.avgAccuracy - b.avgAccuracy).map(item => item.word);
     }
+    function getUserMetrics(user) {
+      const history = getProgressForUser(user);
+      const rounds = history.length;
+      let bestStreak = 0;
+      let bestExact = 0;
+      let perfectBossBattle = false;
+      history.forEach(round => {
+        bestStreak = Math.max(bestStreak, round.bestStreak || 0);
+        bestExact = Math.max(bestExact, round.exactPercent || 0);
+        if (round.roundType === 'focus' && round.exactPercent === 100) perfectBossBattle = true;
+      });
+      const secureWordSet = new Set();
+      ['Year 3–4','Year 5–6'].forEach(listName => {
+        const stats = buildWordStatsForUser(user, listName);
+        Object.keys(stats).forEach(word => {
+          if (evaluateWordLevel(stats[word]).label === 'Secure') secureWordSet.add(word);
+        });
+      });
+      const recentTransitions = countRecentRedToGreenTransitions(user);
+      return { rounds, bestStreak, bestExact, perfectBossBattle, secureWords: secureWordSet.size, redToGreenCount: recentTransitions };
+    }
+    function countRecentRedToGreenTransitions(user) {
+      const result = new Set();
+      ['Year 3–4','Year 5–6'].forEach(listName => {
+        const history = getProgressForUser(user).filter(r => r.listName === listName);
+        const states = {};
+        history.forEach(round => {
+          const stats = buildWordStatsForUser(user, listName);
+          Object.keys(stats).forEach(word => {
+            const label = evaluateWordLevel(stats[word]).label;
+            if (label === 'Secure') result.add(word);
+          });
+        });
+      });
+      return result.size;
+    }
+    function unlockThemesForUser(user) {
+      const state = getThemeState(user);
+      const unlocked = new Set(state.unlocked || ['volcano']);
+      const metrics = getUserMetrics(user);
+      const newlyUnlocked = [];
+      Object.entries(THEME_DEFS).forEach(([key, def]) => {
+        if (!unlocked.has(key) && def.requirement(metrics)) {
+          unlocked.add(key);
+          newlyUnlocked.push(def.name);
+        }
+      });
+      appData.themes[user] = { unlocked: Array.from(unlocked), selected: state.selected && unlocked.has(state.selected) ? state.selected : Array.from(unlocked)[0] };
+      return newlyUnlocked;
+    }
+    function showThemeUnlock(name) {
+      const banner = document.createElement('div');
+      banner.className = 'mastered-banner';
+      banner.textContent = 'Theme unlocked: ' + name;
+      document.body.appendChild(banner);
+      burstCelebration(window.innerWidth / 2, 110, 32);
+      setTimeout(() => banner.remove(), 1600);
+    }
     function renderProgressSummary() {
       const history = getProgressForUser(activeUser);
       if (!history.length) { $('progressSummary').textContent = 'No saved progress yet for ' + activeUser + '.'; return; }
@@ -673,15 +782,39 @@
         const cell = document.createElement('div');
         cell.className = 'heatmap-cell';
         cell.style.background = level.color;
-        if (lastHeatmapStates[word] && lastHeatmapStates[word] !== 'Secure' && level.label === 'Secure') {
-          cell.classList.add('mastered-burst');
-        }
+        if (lastHeatmapStates[word] && lastHeatmapStates[word] !== 'Secure' && level.label === 'Secure') cell.classList.add('mastered-burst');
         cell.innerHTML = '<div class="heatmap-word">' + word + '</div><div class="heatmap-meta">' + (attempts ? (level.label + '<br>Tried ' + attempts + '<br>' + exact + '% exact · ' + avg + '% avg') : 'Not attempted') + '</div>';
         grid.appendChild(cell);
         if (!attempts) notAttempted++; else if (level.label === 'Secure') secure++; else if (level.label === 'Improving') improving++; else needsWork++;
       });
       $('heatmapSummary').textContent = activeUser + ' · ' + activeList + ': ' + secure + ' secure, ' + improving + ' improving, ' + needsWork + ' needing work, ' + notAttempted + ' not attempted.';
       lastHeatmapStates = newStates;
+    }
+    function renderThemeLocker() {
+      const grid = $('themeGrid');
+      grid.innerHTML = '';
+      const state = getThemeState(activeUser);
+      const unlocked = new Set(state.unlocked || ['volcano']);
+      const metrics = getUserMetrics(activeUser);
+      Object.entries(THEME_DEFS).forEach(([key, def]) => {
+        const card = document.createElement('div');
+        const isUnlocked = unlocked.has(key);
+        const isSelected = state.selected === key;
+        card.className = 'theme-card ' + (isUnlocked ? 'unlocked' : 'locked');
+        card.innerHTML = '<div class="theme-preview ' + key + '"></div><div><strong>' + def.name + '</strong></div><div class="unlock-note">' + (isUnlocked ? (isSelected ? 'Selected' : 'Unlocked') : def.unlockText) + '</div>';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = isUnlocked ? (isSelected ? 'Using' : 'Use theme') : 'Locked';
+        btn.disabled = !isUnlocked;
+        if (isSelected) btn.classList.add('active');
+        btn.style.marginTop = '10px';
+        btn.addEventListener('click', () => {
+          appData.themes[activeUser].selected = key;
+          persistData();
+        });
+        card.appendChild(btn);
+        grid.appendChild(card);
+      });
     }
     function getDisplayedWordsForDashboard(listName, stats) {
       return Array.from(new Set((WORD_SETS[listName] || []).map(w => w.toLowerCase()))).map(word => {
@@ -701,9 +834,10 @@
         const avgExact = rounds ? Math.round(history.reduce((sum, round) => sum + round.exactPercent, 0) / rounds) : 0;
         const stats = buildWordStatsForUser(user, listName);
         const weakest = getDisplayedWordsForDashboard(listName, stats).slice(0, 8);
+        const themes = getThemeState(user).unlocked.length;
         const card = document.createElement('div');
         card.className = 'dashboard-card';
-        card.innerHTML = '<div><strong>' + user + '</strong></div><div class="tiny muted" style="margin-top:8px;">' + (rounds ? (rounds + ' rounds · ' + avgExact + '% exact · ' + avgAccuracy + '% avg accuracy') : 'No rounds yet') + '</div><div class="tiny muted" style="margin-top:10px;">Weakest words:</div><ul class="weak-list">' + weakest.map(item => '<li>' + item.word + ' — ' + item.label.toLowerCase() + '</li>').join('') + '</ul>';
+        card.innerHTML = '<div><strong>' + user + '</strong></div><div class="tiny muted" style="margin-top:8px;">' + (rounds ? (rounds + ' rounds · ' + avgExact + '% exact · ' + avgAccuracy + '% avg accuracy · ' + themes + ' themes') : 'No rounds yet') + '</div><div class="tiny muted" style="margin-top:10px;">Weakest words:</div><ul class="weak-list">' + weakest.map(item => '<li>' + item.word + ' — ' + item.label.toLowerCase() + '</li>').join('') + '</ul>';
         grid.appendChild(card);
       });
       $('dashboardSummary').textContent = 'Family overview for George and Ben.';
@@ -739,15 +873,21 @@
         $('resultsList').appendChild(item);
       });
     }
-    function renderAll() { updateHeader(); updateButtons(); renderProgressSummary(); renderHeatmap(); renderParentDashboard(); }
+    function renderAll() {
+      updateHeader();
+      updateButtons();
+      renderProgressSummary();
+      renderHeatmap();
+      renderThemeLocker();
+      renderParentDashboard();
+    }
     function startPractice(useFocusMode) {
       focusMode = !!useFocusMode;
-      sessionWords = focusMode
-        ? getWeakWords().slice(0, Math.min(wordsPerRound, getWeakWords().length))
-        : shuffle(getPool()).slice(0, Math.min(wordsPerRound, getPool().length));
+      sessionWords = focusMode ? getWeakWords().slice(0, Math.min(wordsPerRound, getWeakWords().length)) : shuffle(getPool()).slice(0, Math.min(wordsPerRound, getPool().length));
       currentIndex = 0;
       results = [];
       currentStreak = 0;
+      bestRoundStreak = 0;
       if (!sessionWords.length) return;
       show('practiceView');
       renderPractice();
@@ -775,10 +915,10 @@
         setTimeout(() => p.remove(), 750);
       }
     }
-    function showMasteredBanner(word) {
+    function showMasteredBanner(text) {
       const banner = document.createElement('div');
       banner.className = 'mastered-banner';
-      banner.textContent = 'Mastered! ' + word + ' secured';
+      banner.textContent = text;
       document.body.appendChild(banner);
       setTimeout(() => banner.remove(), 1600);
     }
@@ -798,6 +938,7 @@
 
       if (correct) {
         currentStreak += 1;
+        bestRoundStreak = Math.max(bestRoundStreak, currentStreak);
         $('feedbackMessage').textContent = feedbackForCorrect(currentStreak);
         flashCorrectUI();
         burstCelebration(window.innerWidth * 0.5, window.innerHeight * 0.38, 12);
@@ -813,8 +954,8 @@
         const exact = results.filter(r => r.correct).length;
         const average = total ? Math.round(results.reduce((sum, r) => sum + r.accuracy, 0) / total) : 0;
         const exactPercent = total ? Math.round((exact / total) * 100) : 0;
-
         const statsBefore = buildWordStatsForUser(activeUser, activeList);
+
         appData.progress[activeUser].push({
           user: activeUser,
           listName: activeList,
@@ -824,11 +965,15 @@
           exactScore: exact,
           exactPercent,
           averageAccuracy: average,
+          bestStreak: bestRoundStreak,
           wordResults: results.map(r => ({ word: r.word, answer: r.answer, correct: r.correct, accuracy: r.accuracy }))
         });
+
+        const newlyUnlocked = unlockThemesForUser(activeUser);
         persistData();
         const statsAfter = buildWordStatsForUser(activeUser, activeList);
         maybeCelebrateMastered(results.map(r => r.word.toLowerCase()), statsAfter, statsBefore);
+        newlyUnlocked.forEach(name => showThemeUnlock(name));
         renderResults();
         show('resultsView');
       } else {
@@ -841,28 +986,16 @@
     function initSpeech() {
       if ('speechSynthesis' in window) {
         const loadVoices = () => { window.speechSynthesis.getVoices(); $('voiceStatus').textContent = 'Voice ready.'; };
-        loadVoices();
-        window.speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices;
       } else {
         $('voiceStatus').textContent = 'Speech is not supported in this browser.';
       }
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.lang = 'en-GB';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+        recognition = new SpeechRecognition(); recognition.lang = 'en-GB'; recognition.interimResults = false; recognition.maxAlternatives = 1;
         $('speakAnswerBtn').classList.remove('hidden');
-        recognition.onstart = () => {
-          listening = true;
-          $('speakAnswerBtn').textContent = 'Listening...';
-          $('speakAnswerBtn').disabled = true;
-        };
-        recognition.onend = () => {
-          listening = false;
-          $('speakAnswerBtn').textContent = 'Speak answer';
-          $('speakAnswerBtn').disabled = false;
-        };
+        recognition.onstart = () => { listening = true; $('speakAnswerBtn').textContent = 'Listening...'; $('speakAnswerBtn').disabled = true; };
+        recognition.onend = () => { listening = false; $('speakAnswerBtn').textContent = 'Speak answer'; $('speakAnswerBtn').disabled = false; };
         recognition.onerror = recognition.onend;
         recognition.onresult = (event) => { $('answerInput').value = event.results[0][0].transcript || ''; };
       }
@@ -886,10 +1019,8 @@
     }
     async function setupFirebaseSync() {
       try {
-        const s1 = document.createElement('script');
-        s1.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
-        const s2 = document.createElement('script');
-        s2.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js';
+        const s1 = document.createElement('script'); s1.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
+        const s2 = document.createElement('script'); s2.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js';
         await new Promise((resolve, reject) => { s1.onload = resolve; s1.onerror = reject; document.head.appendChild(s1); });
         await new Promise((resolve, reject) => { s2.onload = resolve; s2.onerror = reject; document.head.appendChild(s2); });
         firebaseReady = !!window.firebase;
@@ -900,18 +1031,10 @@
         const firebaseDb = window.firebase.firestore(app);
         firebaseRef = firebaseDb.collection('familySpaces').doc(FAMILY_SPACE_ID);
         const first = await firebaseRef.get();
-        if (first.exists) {
-          appData = ensureShape(first.data());
-          saveLocalData();
-        } else {
-          await firebaseRef.set(appData, { merge: true });
-        }
+        if (first.exists) { appData = ensureShape(first.data()); saveLocalData(); }
+        else { await firebaseRef.set(appData, { merge: true }); }
         firebaseRef.onSnapshot((snapshot) => {
-          if (snapshot.exists) {
-            appData = ensureShape(snapshot.data());
-            saveLocalData();
-            renderAll();
-          }
+          if (snapshot.exists) { appData = ensureShape(snapshot.data()); saveLocalData(); renderAll(); }
         });
         syncEnabled = true;
         updateSyncUI('Connected across devices for Family Space ID: ' + FAMILY_SPACE_ID + '.');
