@@ -135,6 +135,13 @@ function renderAll() {
     familyBanner.innerHTML = `<strong>Family Goal: Pizza Night! 🍕</strong> ${total} / ${goal} words spelled correctly.
     <div class="progress"><div class="progress-bar" style="width: ${pct}%"></div></div>`;
   }
+
+  if ($('progressSummary')) {
+    const userProgress = getProgressForUser(State.activeUser);
+    $('progressSummary').textContent = `${State.activeUser} has correctly spelled ${userProgress.length} total words.`;
+  }
+
+  renderHeatmap();
 }
 
 function show(viewId) {
@@ -194,6 +201,23 @@ function submitAnswer() {
     input.focus();
   } else {
     AudioSys.play('tada');
+    
+    // --- Populate Results View ---
+    const correctCount = State.results.filter(r => r.isCorrect).length;
+    const total = State.results.length;
+    const accuracy = Math.round((correctCount / total) * 100) || 0;
+    
+    if ($('exactScore')) $('exactScore').textContent = `${correctCount}/${total}`;
+    if ($('averageAccuracy')) $('averageAccuracy').textContent = `${accuracy}%`;
+    if ($('roundRating')) $('roundRating').textContent = accuracy === 100 ? 'Perfect! 🌟' : accuracy >= 80 ? 'Great job! ✨' : 'Good effort! 👍';
+    
+    const listElem = $('resultsList');
+    if (listElem) {
+      listElem.innerHTML = State.results.map(r => 
+        `<div style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>${r.word}</strong>: ${r.isCorrect ? '✅' : `❌ (you typed: <em>${r.answer || 'nothing'}</em>)`}</div>`
+      ).join('');
+    }
+
     show('resultsView');
   }
 }
@@ -209,7 +233,36 @@ function speakWord(word) {
   synth.speak(utterance);
 }
 
-function renderHeatmap() { console.log('Rendering heatmap'); }
+function renderHeatmap() { 
+  const grid = $('heatmapGrid');
+  const summary = $('heatmapSummary');
+  if (!grid || !summary) return;
+
+  const pool = getPool();
+  const progress = getProgressForUser(State.activeUser);
+  const counts = {};
+  
+  progress.forEach(w => { counts[w.toLowerCase()] = (counts[w.toLowerCase()] || 0) + 1; });
+
+  grid.innerHTML = '';
+  let secure = 0, improving = 0, notTried = 0;
+
+  pool.forEach(word => {
+    const count = counts[word.toLowerCase()] || 0;
+    const cell = document.createElement('div');
+    cell.textContent = word;
+    // Styling the cell directly to match the app's heatmap requirements
+    cell.style.cssText = 'padding: 4px 8px; margin: 2px; display: inline-block; border-radius: 4px; font-size: 0.8rem; color: #333;';
+    
+    if (count >= 2) { cell.style.backgroundColor = 'var(--green-soft, #a5d6a7)'; secure++; }
+    else if (count === 1) { cell.style.backgroundColor = 'var(--amber, #ffe082)'; improving++; }
+    else { cell.style.backgroundColor = 'var(--grey, #eeeeee)'; notTried++; }
+    
+    grid.appendChild(cell);
+  });
+
+  summary.textContent = `Secure: ${secure} | Improving: ${improving} | Not tried: ${notTried}`;
+}
 function ensureShape(data) { return data || Config.DEFAULT_DATA; }
 
 // --- Fun Visual Rewards ---
