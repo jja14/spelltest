@@ -64,50 +64,72 @@ const AVATARS = { George: '🦖', Ben: '🤖', Lucy: '🦄', James: '🧙‍♂�
 // --- Game Audio System ---
 const AudioSys = {
   ctx: null,
-  init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+  init() { 
+    try { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { console.warn("Audio API not supported", e); }
+  },
   play(type) {
-    if (!this.ctx) this.init();
-    if (this.ctx.state === 'suspended') this.ctx.resume();
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    const now = this.ctx.currentTime;
-    
-    if (type === 'correct') {
-      // Mario Coin Sound
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(987.77, now); // B5
-      osc.frequency.setValueAtTime(1318.51, now + 0.1); // E6
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-      osc.start(now); osc.stop(now + 0.4);
-    } else if (type === 'incorrect') {
-      // Mario Bump/Damage Sound
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(150, now);
-      osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-      osc.start(now); osc.stop(now + 0.15);
-    } else if (type === 'tada') {
-      // Mario Level Clear Arpeggio
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(392.00, now); // G4
-      osc.frequency.setValueAtTime(523.25, now + 0.15); // C5
-      osc.frequency.setValueAtTime(659.25, now + 0.3); // E5
-      osc.frequency.setValueAtTime(783.99, now + 0.45); // G5
-      osc.frequency.setValueAtTime(1046.50, now + 0.6); // C6
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0, now + 1.0);
-      osc.start(now); osc.stop(now + 1.0);
-    }
+    try {
+      if (!this.ctx) this.init();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      const now = this.ctx.currentTime;
+      
+      if (type === 'correct') {
+        // Mario Coin Sound
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(987.77, now); // B5
+        osc.frequency.setValueAtTime(1318.51, now + 0.1); // E6
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.start(now); osc.stop(now + 0.4);
+      } else if (type === 'incorrect') {
+        // Mario Bump/Damage Sound
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+      } else if (type === 'tada') {
+        // Mario Level Clear Arpeggio
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(392.00, now); // G4
+        osc.frequency.setValueAtTime(523.25, now + 0.15); // C5
+        osc.frequency.setValueAtTime(659.25, now + 0.3); // E5
+        osc.frequency.setValueAtTime(783.99, now + 0.45); // G5
+        osc.frequency.setValueAtTime(1046.50, now + 0.6); // C6
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 1.0);
+        osc.start(now); osc.stop(now + 1.0);
+      }
+    } catch (e) { console.warn("Audio playback error", e); }
   }
 };
 
+function ensureShape(data) { 
+  if (!data || typeof data !== 'object') data = JSON.parse(JSON.stringify(Config.DEFAULT_DATA));
+  if (!data.progress) data.progress = {};
+  if (!data.themes) data.themes = {};
+  const users = ['George', 'Ben', 'Lucy', 'James'];
+  users.forEach(u => {
+    if (!Array.isArray(data.progress[u])) data.progress[u] = [];
+    if (!data.themes[u]) data.themes[u] = { unlocked: ['volcano'], selected: 'volcano' };
+  });
+  return data; 
+}
+
 function loadLocalData() {
-  const stored = localStorage.getItem('simple-spelling-app-data');
-  return stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(Config.DEFAULT_DATA));
+  let data = null;
+  try {
+    const stored = localStorage.getItem('simple-spelling-app-data');
+    if (stored) data = JSON.parse(stored);
+  } catch (e) {}
+  return ensureShape(data);
 }
 
 function renderAll() {
@@ -134,7 +156,7 @@ function renderAll() {
   }
   if (familyBanner && State.appData) {
     let total = 0;
-    for (const u in State.appData.progress) total += State.appData.progress[u].length;
+      for (const u in State.appData.progress) { if (Array.isArray(State.appData.progress[u])) total += State.appData.progress[u].length; }
     const goal = 500;
     const pct = Math.min(100, (total / goal) * 100);
     familyBanner.innerHTML = `<strong>Family Goal: Pizza Night! 🍕</strong> ${total} / ${goal} words spelled correctly.
@@ -160,6 +182,23 @@ function updateSyncUI(msg) {
   if ($('syncStatus')) $('syncStatus').textContent = msg;
 }
 
+function updatePracticeUI() {
+  if ($('wordPosition')) $('wordPosition').textContent = `Word ${State.currentIndex + 1} of ${State.sessionWords.length}`;
+  if ($('answeredCount')) $('answeredCount').textContent = `${State.currentIndex} answered`;
+  if ($('progressBar')) {
+    const pct = (State.currentIndex / State.sessionWords.length) * 100;
+    $('progressBar').style.width = `${pct}%`;
+  }
+}
+
+function showFeedback(msg, type) {
+  const fb = $('feedbackMessage');
+  if (!fb) return;
+  fb.textContent = msg;
+  fb.style.color = type === 'good' ? '#00a800' : '#e52521'; // Mario green and red
+  setTimeout(() => { if (fb.textContent === msg) fb.textContent = ''; }, 3000);
+}
+
 // Function stubs for core game logic
 function startPractice(isBossBattle) { 
   const pool = getPool();
@@ -170,6 +209,7 @@ function startPractice(isBossBattle) {
   State.results = [];
   
   show('practiceView');
+  updatePracticeUI();
   const answerInput = $('answerInput');
   if (answerInput) {
     answerInput.value = '';
@@ -188,20 +228,25 @@ function submitAnswer() {
   
   State.results.push({ word, answer, isCorrect });
   
+  // UX Fix: Clear immediately so the screen never gets stuck!
+  input.value = '';
+  State.currentIndex++;
+
   if (isCorrect) {
     AudioSys.play('correct');
     triggerCelebration(Math.random() > 0.8 ? 'mastered' : 'mini'); // Throw mastered blast sometimes for fun
+    if (!State.appData.progress) State.appData.progress = {};
     if (!State.appData.progress[State.activeUser]) State.appData.progress[State.activeUser] = [];
     State.appData.progress[State.activeUser].push(word);
-    persistData(); // Update family goal & local storage
+    try { persistData(); } catch (e) { console.warn("Could not save progress", e); }
+    showFeedback('Correct! 🍄', 'good');
   } else {
     AudioSys.play('incorrect');
+    showFeedback(`Not quite! The word was: ${word}`, 'warn');
   }
   
-  State.currentIndex++;
-  input.value = '';
-  
   if (State.currentIndex < State.sessionWords.length) {
+    updatePracticeUI();
     if (State.autoSpeak) setTimeout(() => speakWord(State.sessionWords[State.currentIndex]), 300);
     input.focus();
   } else {
@@ -247,7 +292,9 @@ function renderHeatmap() {
   const progress = getProgressForUser(State.activeUser);
   const counts = {};
   
-  progress.forEach(w => { counts[w.toLowerCase()] = (counts[w.toLowerCase()] || 0) + 1; });
+  progress.forEach(w => { 
+    if (w && typeof w === 'string') counts[w.toLowerCase()] = (counts[w.toLowerCase()] || 0) + 1; 
+  });
 
   grid.innerHTML = '';
   let secure = 0, improving = 0, notTried = 0;
@@ -268,7 +315,6 @@ function renderHeatmap() {
 
   summary.textContent = `Secure: ${secure} | Improving: ${improving} | Not tried: ${notTried}`;
 }
-function ensureShape(data) { return data || Config.DEFAULT_DATA; }
 
 // --- Fun Visual Rewards ---
 function triggerCelebration(type = 'mini') {
