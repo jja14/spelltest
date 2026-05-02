@@ -59,19 +59,82 @@ const userButtons = document.querySelectorAll('.user-btn');
 const yearButtons = document.querySelectorAll('.year-btn');
 const countButtons = document.querySelectorAll('.count-btn');
 
+const AVATARS = { George: '🦖', Ben: '🤖', Lucy: '🦄', James: '🧙‍♂️' };
+
+// --- Game Audio System ---
+const AudioSys = {
+  ctx: null,
+  init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+  play(type) {
+    if (!this.ctx) this.init();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    const now = this.ctx.currentTime;
+    
+    if (type === 'correct') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, now); // C5
+      osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.start(now); osc.stop(now + 0.4);
+    } else if (type === 'incorrect') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(250, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.3);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc.start(now); osc.stop(now + 0.3);
+    } else if (type === 'tada') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.setValueAtTime(554.37, now + 0.15);
+      osc.frequency.setValueAtTime(659.25, now + 0.3);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.6);
+      osc.start(now); osc.stop(now + 0.6);
+    }
+  }
+};
+
 function loadLocalData() {
   const stored = localStorage.getItem('simple-spelling-app-data');
   return stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(Config.DEFAULT_DATA));
 }
 
 function renderAll() {
-  userButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.user === State.activeUser));
+  userButtons.forEach(btn => {
+    const u = btn.dataset.user;
+    btn.innerHTML = `${AVATARS[u] || '👤'} ${u}`;
+    btn.classList.toggle('active', u === State.activeUser);
+  });
   yearButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.year === State.activeList));
   countButtons.forEach(btn => btn.classList.toggle('active', Number(btn.dataset.count) === State.wordsPerRound));
   
   if ($('activeUserName')) $('activeUserName').textContent = State.activeUser;
   if ($('activeListName')) $('activeListName').textContent = State.activeList;
   if ($('activeCount')) $('activeCount').textContent = State.wordsPerRound;
+  
+  // Render Family Goal Banner
+  let familyBanner = $('familyBanner');
+  if (!familyBanner) {
+    familyBanner = document.createElement('div');
+    familyBanner.id = 'familyBanner';
+    familyBanner.className = 'banner';
+    const wrap = document.querySelector('.wrap');
+    if (wrap) wrap.insertBefore(familyBanner, wrap.firstChild);
+  }
+  if (familyBanner && State.appData) {
+    let total = 0;
+    for (const u in State.appData.progress) total += State.appData.progress[u].length;
+    const goal = 500;
+    const pct = Math.min(100, (total / goal) * 100);
+    familyBanner.innerHTML = `<strong>Family Goal: Pizza Night! 🍕</strong> ${total} / ${goal} words spelled correctly.
+    <div class="progress"><div class="progress-bar" style="width: ${pct}%"></div></div>`;
+  }
 }
 
 function show(viewId) {
@@ -86,12 +149,94 @@ function updateSyncUI(msg) {
 }
 
 // Function stubs for core game logic
-function startPractice(isBossBattle) { show('practiceView'); console.log('Starting practice. Boss Battle:', isBossBattle); }
-function submitAnswer() { console.log('Answer submitted'); }
-function speakWord(word) { console.log('Speaking word:', word); }
+function startPractice(isBossBattle) { 
+  const pool = getPool();
+  if (!pool || pool.length === 0) return;
+  let shuffled = [...pool].sort(() => 0.5 - Math.random());
+  State.sessionWords = shuffled.slice(0, State.wordsPerRound);
+  State.currentIndex = 0;
+  State.results = [];
+  
+  show('practiceView');
+  const answerInput = $('answerInput');
+  if (answerInput) {
+    answerInput.value = '';
+    answerInput.focus();
+  }
+  setTimeout(() => { if (State.autoSpeak) speakWord(State.sessionWords[0]); }, 300);
+}
+
+function submitAnswer() { 
+  const input = $('answerInput');
+  if (!input || State.currentIndex >= State.sessionWords.length) return;
+  
+  const answer = input.value.trim().toLowerCase();
+  const word = State.sessionWords[State.currentIndex].toLowerCase();
+  const isCorrect = answer === word;
+  
+  State.results.push({ word, answer, isCorrect });
+  
+  if (isCorrect) {
+    AudioSys.play('correct');
+    triggerCelebration(Math.random() > 0.8 ? 'mastered' : 'mini'); // Throw mastered blast sometimes for fun
+    if (!State.appData.progress[State.activeUser]) State.appData.progress[State.activeUser] = [];
+    State.appData.progress[State.activeUser].push(word);
+    persistData(); // Update family goal & local storage
+  } else {
+    AudioSys.play('incorrect');
+  }
+  
+  State.currentIndex++;
+  input.value = '';
+  
+  if (State.currentIndex < State.sessionWords.length) {
+    if (State.autoSpeak) setTimeout(() => speakWord(State.sessionWords[State.currentIndex]), 300);
+    input.focus();
+  } else {
+    AudioSys.play('tada');
+    show('resultsView');
+  }
+}
+
+let synth = null;
+function initSpeech() { if (window.speechSynthesis) synth = window.speechSynthesis; }
+function speakWord(word) { 
+  if (!synth) return;
+  if (synth.speaking) synth.cancel();
+  const utterance = new SpeechSynthesisUtterance(word);
+  utterance.lang = 'en-GB';
+  utterance.rate = 0.85;
+  synth.speak(utterance);
+}
+
 function renderHeatmap() { console.log('Rendering heatmap'); }
 function ensureShape(data) { return data || Config.DEFAULT_DATA; }
-function initSpeech() { console.log('Speech initialized'); }
+
+// --- Fun Visual Rewards ---
+function triggerCelebration(type = 'mini') {
+  const layer = $('celebrationLayer');
+  if (!layer) return;
+  
+  const particle = document.createElement('div');
+  // Choose emojis based on the type of achievement
+  particle.textContent = type === 'mastered' ? '🌟' : '✨';
+  particle.style.position = 'absolute';
+  particle.style.left = Math.random() * 80 + 10 + '%';
+  particle.style.top = Math.random() * 50 + 25 + '%';
+  particle.style.fontSize = type === 'mastered' ? '4rem' : '2rem';
+  particle.style.transition = 'all 1s ease-out';
+  particle.style.pointerEvents = 'none';
+  
+  layer.appendChild(particle);
+  
+  // Animate upwards and fade out
+  requestAnimationFrame(() => {
+    particle.style.transform = `translateY(-100px) scale(${type === 'mastered' ? 1.5 : 1})`;
+    particle.style.opacity = '0';
+  });
+  
+  setTimeout(() => particle.remove(), 1000);
+}
 
 State.appData = loadLocalData();
 
