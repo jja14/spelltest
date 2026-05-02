@@ -311,3 +311,53 @@ show('startView');
 renderAll();
 updateSyncUI('Local app ready.');
 if (Config.AUTO_SYNC) setupFirebaseSync();
+
+// --- Mario Overlay Injection ---
+function injectMarioStyles() {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    
+    body.mario-theme {
+      background-color: #5c94fc !important; /* Classic Sky Blue */
+      font-family: 'Press Start 2P', cursive !important;
+      background-image: linear-gradient(transparent 80%, #c84c0c 80%, #c84c0c 85%, #00a800 85%, #00a800 100%) !important;
+      background-attachment: fixed !important;
+    }
+    .mario-theme h1, .mario-theme h2, .mario-theme h3 {
+      text-shadow: 3px 3px 0 #000;
+      color: white;
+    }
+    .mario-theme button {
+      font-family: 'Press Start 2P', cursive !important;
+      background-color: #e52521 !important; /* Mario Red */
+      color: white !important;
+      border: 4px solid #000 !important;
+      box-shadow: 4px 4px 0px #000 !important;
+      border-radius: 0 !important;
+      text-transform: uppercase !important;
+      font-size: 0.8rem !important;
+      margin: 4px;
+    }
+    .mario-theme .user-btn.active, .mario-theme .year-btn.active, .mario-theme .count-btn.active {
+      background-color: #f8d820 !important; /* Coin Yellow */
+      color: #000 !important;
+    }
+    .mario-theme input {
+      font-family: 'Press Start 2P', cursive !important;
+      border: 4px solid #000 !important;
+      padding: 10px;
+    }
+    .mario-theme .banner {
+      background-color: #f8d820 !important;
+      color: #000 !important;
+      border: 4px solid #000 !important;
+    }
+    .mario-theme .progress-bar { background-color: #43b047 !important; /* Luigi Green */ }
+  `;
+  document.head.appendChild(style);
+  document.body.classList.add('mario-theme');
+}
+
+// Turn on Mario mode right away!
+injectMarioStyles();
