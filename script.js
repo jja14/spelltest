@@ -75,27 +75,32 @@ const AudioSys = {
     const now = this.ctx.currentTime;
     
     if (type === 'correct') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(523.25, now); // C5
-      osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+      // Mario Coin Sound
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(987.77, now); // B5
+      osc.frequency.setValueAtTime(1318.51, now + 0.1); // E6
       gain.gain.setValueAtTime(0.1, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
       osc.start(now); osc.stop(now + 0.4);
     } else if (type === 'incorrect') {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(250, now);
-      osc.frequency.exponentialRampToValueAtTime(150, now + 0.3);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-      osc.start(now); osc.stop(now + 0.3);
-    } else if (type === 'tada') {
+      // Mario Bump/Damage Sound
       osc.type = 'square';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.setValueAtTime(554.37, now + 0.15);
-      osc.frequency.setValueAtTime(659.25, now + 0.3);
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
       gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.6);
-      osc.start(now); osc.stop(now + 0.6);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      osc.start(now); osc.stop(now + 0.15);
+    } else if (type === 'tada') {
+      // Mario Level Clear Arpeggio
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(392.00, now); // G4
+      osc.frequency.setValueAtTime(523.25, now + 0.15); // C5
+      osc.frequency.setValueAtTime(659.25, now + 0.3); // E5
+      osc.frequency.setValueAtTime(783.99, now + 0.45); // G5
+      osc.frequency.setValueAtTime(1046.50, now + 0.6); // C6
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.linearRampToValueAtTime(0, now + 1.0);
+      osc.start(now); osc.stop(now + 1.0);
     }
   }
 };
@@ -272,7 +277,7 @@ function triggerCelebration(type = 'mini') {
   
   const particle = document.createElement('div');
   // Choose emojis based on the type of achievement
-  particle.textContent = type === 'mastered' ? '🌟' : '✨';
+  particle.textContent = type === 'mastered' ? '⭐' : '🪙';
   particle.style.position = 'absolute';
   particle.style.left = Math.random() * 80 + 10 + '%';
   particle.style.top = Math.random() * 50 + 25 + '%';
