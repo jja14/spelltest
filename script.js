@@ -19,11 +19,18 @@ const Config = {
       Lucy: { unlocked: ['volcano'], selected: 'volcano' },
       James: { unlocked: ['volcano'], selected: 'volcano' }
     },
+    metrics: {
+      George: { bestStreak: 0, secureWords: 0, rounds: 0, bestExact: 0, perfectBossBattle: false },
+      Ben: { bestStreak: 0, secureWords: 0, rounds: 0, bestExact: 0, perfectBossBattle: false },
+      Lucy: { bestStreak: 0, secureWords: 0, rounds: 0, bestExact: 0, perfectBossBattle: false },
+      James: { bestStreak: 0, secureWords: 0, rounds: 0, bestExact: 0, perfectBossBattle: false }
+    },
     updatedAt: null
   },
   AUTO_SYNC: true,
   FAMILY_SPACE_ID: 'balham-spelltest',
   FIREBASE_CONFIG: {
+    // ⚠️ SECURITY: These are public credentials - consider moving to environment variables or a backend service
     apiKey: "AIzaSyDJdUdL_kcAFt0NthL8LlrR0xCnyBgBwWg",
     authDomain: "balham-spelltest.firebaseapp.com",
     projectId: "balham-spelltest",
@@ -115,10 +122,12 @@ function ensureShape(data) {
   if (!data || typeof data !== 'object') data = JSON.parse(JSON.stringify(Config.DEFAULT_DATA));
   if (!data.progress) data.progress = {};
   if (!data.themes) data.themes = {};
+  if (!data.metrics) data.metrics = {};
   const users = ['George', 'Ben', 'Lucy', 'James'];
   users.forEach(u => {
     if (!Array.isArray(data.progress[u])) data.progress[u] = [];
     if (!data.themes[u]) data.themes[u] = { unlocked: ['volcano'], selected: 'volcano' };
+    if (!data.metrics[u]) data.metrics[u] = { bestStreak: 0, secureWords: 0, rounds: 0, bestExact: 0, perfectBossBattle: false };
   });
   return data; 
 }
@@ -199,14 +208,25 @@ function showFeedback(msg, type) {
   setTimeout(() => { if (fb.textContent === msg) fb.textContent = ''; }, 3000);
 }
 
+// Proper Fisher-Yates shuffle algorithm
+function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 // Function stubs for core game logic
 function startPractice(isBossBattle) { 
   const pool = getPool();
   if (!pool || pool.length === 0) return;
-  let shuffled = [...pool].sort(() => 0.5 - Math.random());
+  let shuffled = shuffleArray(pool);
   State.sessionWords = shuffled.slice(0, State.wordsPerRound);
   State.currentIndex = 0;
   State.results = [];
+  State.currentStreak = 0;
   
   show('practiceView');
   updatePracticeUI();
@@ -233,6 +253,8 @@ function submitAnswer() {
   State.currentIndex++;
 
   if (isCorrect) {
+    State.currentStreak++;
+    State.bestRoundStreak = Math.max(State.bestRoundStreak, State.currentStreak);
     AudioSys.play('correct');
     triggerCelebration(Math.random() > 0.8 ? 'mastered' : 'mini'); // Throw mastered blast sometimes for fun
     if (!State.appData.progress) State.appData.progress = {};
@@ -241,6 +263,7 @@ function submitAnswer() {
     try { persistData(); } catch (e) { console.warn("Could not save progress", e); }
     showFeedback('Correct! 🍄', 'good');
   } else {
+    State.currentStreak = 0;
     AudioSys.play('incorrect');
     showFeedback(`Not quite! The word was: ${word}`, 'warn');
   }
@@ -257,15 +280,36 @@ function submitAnswer() {
     const total = State.results.length;
     const accuracy = Math.round((correctCount / total) * 100) || 0;
     
+    // --- Update Metrics & Check for Unlocks ---
+    const userMetrics = State.appData.metrics[State.activeUser];
+    if (userMetrics) {
+        userMetrics.bestStreak = Math.max(userMetrics.bestStreak || 0, State.bestRoundStreak);
+    }
+
+    const userThemes = State.appData.themes[State.activeUser];
+    if (userMetrics && userThemes) {
+        Object.keys(Config.THEME_DEFS).forEach(themeId => {
+            if (!userThemes.unlocked.includes(themeId)) {
+                const themeDef = Config.THEME_DEFS[themeId];
+                if (themeDef.requirement(userMetrics)) {
+                    userThemes.unlocked.push(themeId);
+                }
+            }
+        });
+    }
+    
+    persistData(); // Save new metrics and potential new themes
+    
     if ($('exactScore')) $('exactScore').textContent = `${correctCount}/${total}`;
     if ($('averageAccuracy')) $('averageAccuracy').textContent = `${accuracy}%`;
     if ($('roundRating')) $('roundRating').textContent = accuracy === 100 ? 'Perfect! 🌟' : accuracy >= 80 ? 'Great job! ✨' : 'Good effort! 👍';
     
     const listElem = $('resultsList');
     if (listElem) {
-      listElem.innerHTML = State.results.map(r => 
-        `<div style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>${r.word}</strong>: ${r.isCorrect ? '✅' : `❌ (you typed: <em>${r.answer || 'nothing'}</em>)`}</div>`
-      ).join('');
+      listElem.innerHTML = State.results.map(r => {
+        const userAnswer = r.answer && r.answer.trim() ? r.answer : '(left blank)';
+        return `<div style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>${r.word}</strong>: ${r.isCorrect ? '✅' : `❌ (you typed: <em>${userAnswer}</em>)`}</div>`;
+      }).join('');
     }
 
     show('resultsView');
@@ -320,13 +364,15 @@ async function speakWithContext(word) {
   } catch (e) { console.warn("Could not fetch dictionary context", e); }
 
   // Queue the sentence, then the word again
-  const uSentence = new SpeechSynthesisUtterance(sentence);
-  const uWord = new SpeechSynthesisUtterance(word);
-  [uSentence, uWord].forEach(u => {
-    u.lang = 'en-GB'; u.rate = 0.85; 
-    if (preferredVoice) u.voice = preferredVoice;
-    synth.speak(u);
-  });
+  setTimeout(() => {
+    const uSentence = new SpeechSynthesisUtterance(sentence);
+    const uWord = new SpeechSynthesisUtterance(word);
+    [uSentence, uWord].forEach(u => {
+      u.lang = 'en-GB'; u.rate = 0.85; 
+      if (preferredVoice) u.voice = preferredVoice;
+      synth.speak(u);
+    });
+  }, 500); // Small delay to allow the instant playback to finish
 }
 
 function renderHeatmap() { 
@@ -414,19 +460,19 @@ function persistData() {
 userButtons.forEach(btn => btn.addEventListener('click', () => { State.activeUser = btn.dataset.user; savePreferredUser(); renderAll(); show('startView'); }));
 yearButtons.forEach(btn => btn.addEventListener('click', () => { State.activeList = btn.dataset.year; renderAll(); show('startView'); }));
 countButtons.forEach(btn => btn.addEventListener('click', () => { State.wordsPerRound = Number(btn.dataset.count); renderAll(); }));
-$('toggleAutoSpeak').addEventListener('click', () => { State.autoSpeak = !State.autoSpeak; renderAll(); });
-$('newRoundBtn').addEventListener('click', () => startPractice(false));
-$('focusRoundBtn').addEventListener('click', () => startPractice(true));
-$('startBtn').addEventListener('click', () => startPractice(false));
-$('retryBtn').addEventListener('click', () => startPractice(false));
-$('checkBtn').addEventListener('click', submitAnswer);
-$('sayWordBtn').addEventListener('click', () => speakWord(State.sessionWords[State.currentIndex]));
-$('hearAgainBtn').addEventListener('click', () => speakWord(State.sessionWords[State.currentIndex]));
-$('contextBtn').addEventListener('click', () => speakWithContext(State.sessionWords[State.currentIndex]));
-$('refreshHeatmapBtn').addEventListener('click', renderHeatmap);
-$('answerInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); } });
-$('answerForm').addEventListener('submit', (e) => { e.preventDefault(); submitAnswer(); });
-$('speakAnswerBtn').addEventListener('click', () => { if (State.recognition && !State.listening) State.recognition.start(); });
+if ($('toggleAutoSpeak')) $('toggleAutoSpeak').addEventListener('click', () => { State.autoSpeak = !State.autoSpeak; renderAll(); });
+if ($('newRoundBtn')) $('newRoundBtn').addEventListener('click', () => startPractice(false));
+if ($('focusRoundBtn')) $('focusRoundBtn').addEventListener('click', () => startPractice(true));
+if ($('startBtn')) $('startBtn').addEventListener('click', () => startPractice(false));
+if ($('retryBtn')) $('retryBtn').addEventListener('click', () => startPractice(false));
+if ($('checkBtn')) $('checkBtn').addEventListener('click', submitAnswer);
+if ($('sayWordBtn')) $('sayWordBtn').addEventListener('click', () => speakWord(State.sessionWords[State.currentIndex]));
+if ($('hearAgainBtn')) $('hearAgainBtn').addEventListener('click', () => speakWord(State.sessionWords[State.currentIndex]));
+if ($('contextBtn')) $('contextBtn').addEventListener('click', () => speakWithContext(State.sessionWords[State.currentIndex]));
+if ($('refreshHeatmapBtn')) $('refreshHeatmapBtn').addEventListener('click', renderHeatmap);
+if ($('answerInput')) $('answerInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); } });
+if ($('answerForm')) $('answerForm').addEventListener('submit', (e) => { e.preventDefault(); submitAnswer(); });
+if ($('speakAnswerBtn')) $('speakAnswerBtn').addEventListener('click', () => { if (State.recognition && !State.listening) State.recognition.start(); });
 
 async function setupFirebaseSync() {
   try {
