@@ -273,14 +273,60 @@ function submitAnswer() {
 }
 
 let synth = null;
-function initSpeech() { if (window.speechSynthesis) synth = window.speechSynthesis; }
+let preferredVoice = null;
+
+function initSpeech() { 
+  if (window.speechSynthesis) {
+    synth = window.speechSynthesis; 
+    const loadVoices = () => {
+      const voices = synth.getVoices();
+      // Seek out higher quality natural voices (Google, Premium macOS, etc.)
+      preferredVoice = voices.find(v => v.name.includes('Google UK English Female'))
+                    || voices.find(v => v.name.includes('Google UK English Male'))
+                    || voices.find(v => v.name.includes('Premium') && v.lang === 'en-GB')
+                    || voices.find(v => v.name.includes('Daniel') && v.lang === 'en-GB')
+                    || voices.find(v => v.lang === 'en-GB')
+                    || voices[0];
+    };
+    loadVoices(); // Load immediately
+    if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadVoices; // Update when ready
+  } 
+}
+
 function speakWord(word) { 
   if (!synth) return;
   if (synth.speaking) synth.cancel();
   const utterance = new SpeechSynthesisUtterance(word);
   utterance.lang = 'en-GB';
   utterance.rate = 0.85;
+  if (preferredVoice) utterance.voice = preferredVoice;
   synth.speak(utterance);
+}
+
+async function speakWithContext(word) {
+  if (!synth) return;
+  speakWord(word); // Instantly say the word to prevent waiting on the API
+  
+  let sentence = `The word is ${word}.`;
+  try {
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+    if (res.ok) {
+      const data = await res.json();
+      for (const m of data[0]?.meanings || []) {
+        const def = (m.definitions || []).find(d => d.example);
+        if (def) { sentence = def.example.replace(/<[^>]*>?/gm, ''); break; }
+      }
+    }
+  } catch (e) { console.warn("Could not fetch dictionary context", e); }
+
+  // Queue the sentence, then the word again
+  const uSentence = new SpeechSynthesisUtterance(sentence);
+  const uWord = new SpeechSynthesisUtterance(word);
+  [uSentence, uWord].forEach(u => {
+    u.lang = 'en-GB'; u.rate = 0.85; 
+    if (preferredVoice) u.voice = preferredVoice;
+    synth.speak(u);
+  });
 }
 
 function renderHeatmap() { 
@@ -376,6 +422,7 @@ $('retryBtn').addEventListener('click', () => startPractice(false));
 $('checkBtn').addEventListener('click', submitAnswer);
 $('sayWordBtn').addEventListener('click', () => speakWord(State.sessionWords[State.currentIndex]));
 $('hearAgainBtn').addEventListener('click', () => speakWord(State.sessionWords[State.currentIndex]));
+$('contextBtn').addEventListener('click', () => speakWithContext(State.sessionWords[State.currentIndex]));
 $('refreshHeatmapBtn').addEventListener('click', renderHeatmap);
 $('answerInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); } });
 $('answerForm').addEventListener('submit', (e) => { e.preventDefault(); submitAnswer(); });
