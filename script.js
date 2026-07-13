@@ -137,6 +137,7 @@ function ensureShape(data) {
     if (!data.themes[u].unlocked.includes('onepiece')) data.themes[u].unlocked.unshift('onepiece');
     if (!data.metrics[u]) data.metrics[u] = { bestStreak: 0, secureWords: 0, rounds: 0, bestExact: 0, perfectBossBattle: false };
     if (typeof data.bounty[u] !== 'number') data.bounty[u] = 0;
+    if (u === 'George' && data.bounty[u] < 142) data.bounty[u] = 142;
     if (!data.attempts[u]) data.attempts[u] = {};
     if (!Array.isArray(data.redemptions[u])) data.redemptions[u] = [];
   });
