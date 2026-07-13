@@ -300,7 +300,7 @@
     
     /* One Piece Theme overrides */
     body.onepiece-theme {
-      background: radial-gradient(circle at top, #0f172a 0%, #0c4a6e 50%, #020617 100%) !important;
+      background: radial-gradient(circle at top, #0c4a6e 0%, #082f49 50%, #020617 100%) !important;
       background-attachment: fixed !important;
     }
     .onepiece-theme * {
@@ -309,56 +309,170 @@
     .onepiece-theme h1, .onepiece-theme h2, .onepiece-theme h3 {
       font-family: 'Cinzel', serif;
       color: #fef08a !important; /* Soft Gold */
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6) !important;
-      letter-spacing: 1px;
+      text-shadow: 3px 3px 0px #000 !important;
+      letter-spacing: 2px;
     }
     .onepiece-theme button {
       font-family: 'Outfit', sans-serif;
-      font-weight: 600;
-      background: linear-gradient(135deg, #075985, #0369a1);
-      color: #f8fafc;
-      border: 1px solid #0284c7;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+      font-weight: 800;
+      background: linear-gradient(135deg, #f59e0b, #d97706); /* Golden/Amber Pirate buttons */
+      color: #000;
+      border: 4px solid #000 !important;
+      border-radius: 0px !important;
+      box-shadow: 4px 4px 0px #000 !important;
+      text-transform: uppercase;
+      transition: transform 0.1s, box-shadow 0.1s;
     }
     .onepiece-theme button:hover {
-      background: linear-gradient(135deg, #0369a1, #0284c7);
-      border-color: #38bdf8;
-      transform: translateY(-1px);
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px #000 !important;
+    }
+    .onepiece-theme button:active {
+      transform: translate(2px, 2px);
+      box-shadow: 0px 0px 0px #000 !important;
     }
     .onepiece-theme button.active {
-      background: linear-gradient(135deg, #b45309, #d97706) !important;
-      border-color: #f59e0b !important;
+      background: linear-gradient(135deg, #ea580c, #c2410c) !important; /* Dark orange */
       color: #fff !important;
-      box-shadow: 0 0 12px rgba(245, 158, 11, 0.35) !important;
     }
     .onepiece-theme button.primary {
       background: linear-gradient(135deg, #dc2626, #b91c1c) !important; /* Straw Hat Red */
-      border-color: #ef4444 !important;
       color: #fff !important;
-      box-shadow: 0 0 15px rgba(239, 68, 68, 0.25) !important;
     }
     .onepiece-theme button.primary:hover {
       background: linear-gradient(135deg, #ef4444, #dc2626) !important;
     }
     .onepiece-theme .card, .onepiece-theme .panel, .onepiece-theme .summary-box {
-      background: rgba(15, 23, 42, 0.85) !important;
-      border: 2px solid #b45309 !important; /* Gold/Bronze borders */
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
-      color: var(--text) !important;
+      background: #fffbeb !important; /* Parchment/amber-tinted background */
+      border: 4px solid #000 !important;
+      box-shadow: 8px 8px 0px #000 !important;
+      border-radius: 0px !important;
+      color: #000 !important;
+    }
+    .onepiece-theme .muted {
+      color: #4b5563 !important;
     }
     .onepiece-theme .streak-pill {
-      border: 1px solid rgba(251, 191, 36, 0.35);
-      background: rgba(251, 191, 36, 0.12);
-      color: #fcd34d;
+      border: 3px solid #000 !important;
+      background: #fbbf24 !important;
+      color: #000 !important;
+      border-radius: 0px !important;
+      font-weight: 800;
+      box-shadow: 3px 3px 0px #000;
     }
     .onepiece-theme .progress {
-      border: 1px solid #b45309 !important;
-      background: #111827 !important;
+      border: 4px solid #000 !important;
+      background: #000 !important;
+      border-radius: 0px !important;
+      height: 24px !important;
     }
     .onepiece-theme .progress-bar {
       background: linear-gradient(90deg, #dc2626, #f59e0b, #fef08a) !important;
-      box-shadow: 0 0 16px rgba(245, 158, 11, 0.45) !important;
+      border-right: 4px solid #000 !important;
+      box-shadow: none !important;
+    }
+    .onepiece-theme input {
+      border: 4px solid #000 !important;
+      border-radius: 0px !important;
+      box-shadow: 4px 4px 0px #000 !important;
+      background: #fff !important;
+      color: #000 !important;
+      font-weight: 600;
+    }
+
+    /* WANTED POSTER activeUserCard */
+    .onepiece-theme #activeUserCard {
+      background-color: #f7e1c3 !important; /* Classic Wanted Poster Brown-Yellow */
+      background-image: radial-gradient(rgba(0,0,0,0.1) 1px, transparent 0), radial-gradient(rgba(0,0,0,0.1) 1px, transparent 0) !important;
+      background-size: 8px 8px !important;
+      background-position: 0 0, 4px 4px !important;
+      border: 4px solid #3b2314 !important;
+      box-shadow: 8px 8px 0px #3b2314 !important;
+      color: #3b2314 !important;
+      text-align: center;
+      position: relative;
+    }
+    .onepiece-theme #activeUserCard::before {
+      content: "WANTED";
+      display: block;
+      font-family: 'Cinzel', serif;
+      font-size: 1.6rem;
+      font-weight: 900;
+      letter-spacing: 5px;
+      color: #3b2314;
+      border-bottom: 3px dashed #3b2314;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+    }
+    .onepiece-theme #activeUserCard h3 {
+      font-family: 'Cinzel', serif;
+      font-size: 2rem !important;
+      color: #3b2314 !important;
+      text-shadow: none !important;
+      margin: 8px 0 !important;
+    }
+    .onepiece-theme #activeUserCard .muted {
+      color: #5c3a21 !important;
+    }
+    .onepiece-theme #activeUserCard .streak-row {
+      justify-content: center;
+    }
+    .onepiece-theme #activeUserCard .streak-pill {
+      background: #3b2314 !important;
+      color: #f7e1c3 !important;
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 0px !important;
+    }
+
+    /* Milestone top bar styling */
+    .milestones-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 5px 0;
+      border-top: 2px dashed #000;
+    }
+    .milestone-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      opacity: 0.35;
+      transition: opacity 0.3s;
+      min-width: 70px;
+    }
+    .milestone-step.unlocked {
+      opacity: 1;
+    }
+    .milestone-icon {
+      font-size: 1.5rem;
+      margin-bottom: 2px;
+    }
+    .milestone-cost {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: #d97706;
+    }
+    .milestone-name {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: #1f2937;
+      white-space: nowrap;
+    }
+    .bounty-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+    .bounty-highlight {
+      color: #ea580c;
+      font-size: 1.25rem;
+      font-family: 'Cinzel', serif;
     }
 
     /* Theme preview for One Piece theme in Theme grid */
@@ -374,32 +488,32 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      background: rgba(30, 41, 59, 0.4);
-      border: 1px solid var(--border);
-      border-radius: 16px;
+      background: #fffbeb !important;
+      border: 3px solid #000 !important;
+      box-shadow: 4px 4px 0px #000 !important;
+      border-radius: 0px !important;
       padding: 14px;
       text-align: center;
-      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+      transition: transform 0.1s, box-shadow 0.1s;
     }
     .bounty-shop-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-      border-color: #fbbf24;
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px #000 !important;
     }
     .bounty-shop-icon {
       font-size: 2rem;
       margin-bottom: 8px;
     }
     .bounty-shop-title {
-      font-weight: 700;
+      font-weight: 800;
       font-size: 0.95rem;
-      color: var(--text);
+      color: #000;
       margin-bottom: 4px;
     }
     .bounty-shop-cost {
-      font-size: 0.85rem;
-      color: #fbbf24;
-      font-weight: 700;
+      font-size: 0.9rem;
+      color: #ea580c;
+      font-weight: 800;
       margin-bottom: 12px;
     }
     .bounty-shop-btn {
@@ -413,10 +527,21 @@
       display: flex !important;
       flex-direction: column;
       justify-content: space-between;
-      border-radius: 12px !important;
+      border: 3px solid #000 !important;
+      border-radius: 0px !important;
       padding: 10px 8px !important;
       min-height: 78px !important;
-      color: #fff !important;
+      color: #000 !important;
+      font-weight: 700;
+      box-shadow: 3px 3px 0px #000;
+    }
+    .heatmap-word {
+      font-size: 0.85rem !important;
+      text-transform: capitalize;
+    }
+    .heatmap-meta {
+      color: #000 !important;
+      font-weight: 800;
     }
 
     @media (max-width: 900px) {

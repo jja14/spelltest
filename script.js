@@ -175,12 +175,38 @@ function renderAll() {
     if (wrap) wrap.insertBefore(familyBanner, wrap.firstChild);
   }
   if (familyBanner && State.appData) {
-    let total = 0;
-    for (const u in State.appData.progress) { if (Array.isArray(State.appData.progress[u])) total += State.appData.progress[u].length; }
-    const goal = 500;
-    const pct = Math.min(100, (total / goal) * 100);
-    familyBanner.innerHTML = `<strong>Family Goal: Pizza Night! 🍕</strong> ${total} / ${goal} words spelled correctly.
-    <div class="progress"><div class="progress-bar" style="width: ${pct}%"></div></div>`;
+    const userBounty = State.appData.bounty[State.activeUser] || 0;
+    
+    const nextMilestone = ShopItems.find(item => userBounty < item.cost) || ShopItems[ShopItems.length - 1];
+    const prevMilestoneCost = ShopItems[ShopItems.indexOf(nextMilestone) - 1]?.cost || 0;
+    
+    const range = nextMilestone.cost - prevMilestoneCost;
+    const progressInRange = userBounty - prevMilestoneCost;
+    const pct = Math.min(100, Math.max(0, (progressInRange / (range || 1)) * 100));
+    
+    const milestonesHTML = ShopItems.map(item => {
+      const isUnlocked = userBounty >= item.cost;
+      return `
+        <div class="milestone-step ${isUnlocked ? 'unlocked' : ''}">
+          <div class="milestone-icon">${item.icon}</div>
+          <div class="milestone-cost">${item.cost}฿</div>
+          <div class="milestone-name">${item.name}</div>
+        </div>
+      `;
+    }).join('');
+    
+    familyBanner.innerHTML = `
+      <div class="bounty-header">
+        <span>🏴‍☠️ <strong>${State.activeUser}'s Bounty:</strong> <span class="bounty-highlight">${userBounty} ฿</span></span>
+        <span>Next Milestone: <strong>${nextMilestone.icon} ${nextMilestone.name}</strong> (${nextMilestone.cost} ฿)</span>
+      </div>
+      <div class="progress" style="height: 18px; margin-top: 10px; margin-bottom: 15px;">
+        <div class="progress-bar" style="width: ${pct}%"></div>
+      </div>
+      <div class="milestones-row">
+        ${milestonesHTML}
+      </div>
+    `;
   }
 
   if ($('progressSummary')) {
