@@ -197,7 +197,7 @@ function renderAll() {
     
     familyBanner.innerHTML = `
       <div class="bounty-header">
-        <span>🏴‍☠️ <strong>${State.activeUser}'s Bounty:</strong> <span class="bounty-highlight">${userBounty} ฿</span></span>
+        <span>💰 <strong>${State.activeUser}'s Bounty:</strong> <span class="bounty-highlight">${userBounty} ฿</span></span>
         <span>Next Milestone: <strong>${nextMilestone.icon} ${nextMilestone.name}</strong> (${nextMilestone.cost} ฿)</span>
       </div>
       <div class="progress" style="height: 18px; margin-top: 10px; margin-bottom: 15px;">
@@ -236,6 +236,7 @@ function show(viewId) {
 
 function updateSyncUI(msg) {
   if ($('syncStatus')) $('syncStatus').textContent = msg;
+  if ($('syncBanner')) $('syncBanner').innerHTML = `<strong>Sync status:</strong> ${msg}`;
 }
 
 function updatePracticeUI() {
