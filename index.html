@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Simple Spelling Practice</title>
+  <title>Grand Line Spelling Voyage 🏴‍☠️</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Outfit:wght@300;400;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     body.mario-theme {
       background-color: #5c94fc !important; /* Classic Sky Blue */
@@ -77,7 +77,7 @@
     }
   </style>
 </head>
-<body class="mario-theme">
+<body class="onepiece-theme">
   <div class="celebration-layer" id="celebrationLayer"></div>
   <div class="wrap">
     <div id="syncBanner" class="banner">
@@ -86,16 +86,17 @@
 
     <div class="grid-top">
       <div class="card">
-        <h1>Simple Spelling Practice</h1>
-        <p class="muted">A distraction-free spelling website for George and Ben. Hear the word, type the spelling, build mastery over time, and track progress across the family.</p>
+        <h1>Grand Line Spelling Voyage 🏴‍☠️</h1>
+        <p class="muted">Embark on a spelling adventure! Spell words correctly to increase your bounty, earn Beli (฿), and unlock legendary rewards.</p>
       </div>
       <div class="card">
-        <div class="tiny muted">Active user</div>
+        <div class="tiny muted">Active Pirate</div>
         <h3 id="activeUserName">George</h3>
         <div class="muted"><span id="activeListName">Year 3–4</span> · <span id="activeCount">10</span> words per round</div>
         <div class="streak-row section" style="margin-top:12px;">
-          <div class="streak-pill" id="streakPill">Streak: 0</div>
-          <div class="streak-pill" id="titlePill">Ready</div>
+          <div class="streak-pill" id="streakPill">Streak: 0 🔥</div>
+          <div class="streak-pill" id="bountyPill">Bounty: 0 ฿</div>
+          <div class="streak-pill" id="titlePill">Spelling Recruit</div>
         </div>
       </div>
     </div>
@@ -221,11 +222,21 @@
           <div id="themeGrid" class="theme-grid"></div>
         </div>
 
+        <div class="section summary-box" id="bountyShopBox">
+          <div><strong>Bounty Shop 💰</strong></div>
+          <p class="tiny muted">Redeem your earned Beli (฿) for awesome treats! Balance: <span id="shopBountyBalance" style="color: #fbbf24; font-weight: 700;">0 ฿</span></p>
+          <div id="bountyShopGrid" class="theme-grid"></div>
+        </div>
+
         <div id="parentDashboard" class="section summary-box hidden">
-          <div><strong>Parent dashboard</strong></div>
+          <div><strong>Parent Dashboard 🏴‍☠️</strong></div>
           <p class="tiny muted">Best viewed as Lucy or James.</p>
           <div id="dashboardSummary" class="tiny muted">No dashboard data yet.</div>
           <div id="dashboardGrid" class="dashboard-grid"></div>
+          <div class="section" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
+            <div><strong>Pending Redemptions</strong></div>
+            <div id="pendingRedemptionsList" class="tiny muted" style="margin-top: 8px;">No pending redemptions.</div>
+          </div>
         </div>
 
         <div class="section summary-box">

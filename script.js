@@ -4,6 +4,7 @@ const Config = {
     "Year 5–6": ["accommodate","accompany","according","achieve","aggressive","amateur","ancient","apparent","appreciate","attached","available","average","awkward","bargain","bruise","category","cemetery","committee","communicate","community","competition","conscience","conscious","controversy","convenience","correspond","criticise","curiosity","definite","desperate","determined","develop","dictionary","disastrous","embarrass","environment","equip","equipment","especially","exaggerate","excellent","existence","explanation","familiar","foreign","forty","frequently","government","guarantee","harass","hindrance","identity","immediate","immediately","individual","interfere","interrupt","language","leisure","lightning","marvellous","mischievous","muscle","necessary","neighbour","nuisance","occupy","occur","opportunity","parliament","persuade","physical","prejudice","privilege","profession","programme","pronunciation","queue","recognise","recommend","relevant","restaurant","rhyme","rhythm","sacrifice","secretary","shoulder","signature","sincere","sincerely","soldier","stomach","sufficient","suggest","symbol","system","temperature","thorough","twelfth","variety","vegetable","vehicle","yacht"]
   },
   THEME_DEFS: {
+    onepiece: { name: 'Straw Hat Crew', unlockText: 'Default theme', requirement: () => true },
     volcano: { name: 'Volcano', unlockText: 'Starter theme', requirement: () => true },
     space: { name: 'Space', unlockText: 'Streak of 5', requirement: (m) => m.bestStreak >= 5 },
     lightning: { name: 'Lightning', unlockText: '10 secure words', requirement: (m) => m.secureWords >= 10 },
@@ -14,10 +15,10 @@ const Config = {
   DEFAULT_DATA: {
     progress: { George: [], Ben: [], Lucy: [], James: [] },
     themes: {
-      George: { unlocked: ['volcano'], selected: 'volcano' },
-      Ben: { unlocked: ['volcano'], selected: 'volcano' },
-      Lucy: { unlocked: ['volcano'], selected: 'volcano' },
-      James: { unlocked: ['volcano'], selected: 'volcano' }
+      George: { unlocked: ['onepiece', 'volcano'], selected: 'onepiece' },
+      Ben: { unlocked: ['onepiece', 'volcano'], selected: 'onepiece' },
+      Lucy: { unlocked: ['onepiece', 'volcano'], selected: 'onepiece' },
+      James: { unlocked: ['onepiece', 'volcano'], selected: 'onepiece' }
     },
     metrics: {
       George: { bestStreak: 0, secureWords: 0, rounds: 0, bestExact: 0, perfectBossBattle: false },
@@ -25,6 +26,9 @@ const Config = {
       Lucy: { bestStreak: 0, secureWords: 0, rounds: 0, bestExact: 0, perfectBossBattle: false },
       James: { bestStreak: 0, secureWords: 0, rounds: 0, bestExact: 0, perfectBossBattle: false }
     },
+    bounty: { George: 0, Ben: 0, Lucy: 0, James: 0 },
+    attempts: { George: {}, Ben: {}, Lucy: {}, James: {} },
+    redemptions: { George: [], Ben: [], Lucy: [], James: [] },
     updatedAt: null
   },
   AUTO_SYNC: true,
@@ -123,11 +127,18 @@ function ensureShape(data) {
   if (!data.progress) data.progress = {};
   if (!data.themes) data.themes = {};
   if (!data.metrics) data.metrics = {};
+  if (!data.bounty) data.bounty = {};
+  if (!data.attempts) data.attempts = {};
+  if (!data.redemptions) data.redemptions = {};
   const users = ['George', 'Ben', 'Lucy', 'James'];
   users.forEach(u => {
     if (!Array.isArray(data.progress[u])) data.progress[u] = [];
-    if (!data.themes[u]) data.themes[u] = { unlocked: ['volcano'], selected: 'volcano' };
+    if (!data.themes[u]) data.themes[u] = { unlocked: ['onepiece', 'volcano'], selected: 'onepiece' };
+    if (!data.themes[u].unlocked.includes('onepiece')) data.themes[u].unlocked.unshift('onepiece');
     if (!data.metrics[u]) data.metrics[u] = { bestStreak: 0, secureWords: 0, rounds: 0, bestExact: 0, perfectBossBattle: false };
+    if (typeof data.bounty[u] !== 'number') data.bounty[u] = 0;
+    if (!data.attempts[u]) data.attempts[u] = {};
+    if (!Array.isArray(data.redemptions[u])) data.redemptions[u] = [];
   });
   return data; 
 }
@@ -165,7 +176,7 @@ function renderAll() {
   }
   if (familyBanner && State.appData) {
     let total = 0;
-      for (const u in State.appData.progress) { if (Array.isArray(State.appData.progress[u])) total += State.appData.progress[u].length; }
+    for (const u in State.appData.progress) { if (Array.isArray(State.appData.progress[u])) total += State.appData.progress[u].length; }
     const goal = 500;
     const pct = Math.min(100, (total / goal) * 100);
     familyBanner.innerHTML = `<strong>Family Goal: Pizza Night! 🍕</strong> ${total} / ${goal} words spelled correctly.
@@ -178,6 +189,16 @@ function renderAll() {
   }
 
   renderHeatmap();
+  renderThemes();
+  renderBountyShop();
+
+  const isParent = ['Lucy', 'James'].includes(State.activeUser);
+  if ($('parentDashboard')) {
+    $('parentDashboard').classList.toggle('hidden', !isParent);
+    if (isParent) {
+      renderParentDashboard();
+    }
+  }
 }
 
 function show(viewId) {
@@ -219,14 +240,53 @@ function shuffleArray(array) {
 }
 
 // Function stubs for core game logic
-function startPractice(isBossBattle) { 
+function getBossBattlePool() {
   const pool = getPool();
+  const attempts = State.appData.attempts[State.activeUser] || {};
+  
+  const classified = pool.map(word => {
+    const w = word.toLowerCase();
+    const att = attempts[w] || { correct: 0, incorrect: 0 };
+    
+    let status = 'grey'; // Not Tried
+    if (att.correct >= 2) {
+      status = 'green'; // Secure
+    } else if (att.correct === 1 && att.incorrect === 0) {
+      status = 'yellow'; // Improving
+    } else if (att.correct < 2 && att.incorrect > 0) {
+      status = 'red'; // Needs Work
+    }
+    return { word, status };
+  });
+  
+  // Shuffling within status tiers
+  const groups = { red: [], grey: [], yellow: [], green: [] };
+  classified.forEach(item => groups[item.status].push(item.word));
+  
+  return [
+    ...shuffleArray(groups.red),
+    ...shuffleArray(groups.grey),
+    ...shuffleArray(groups.yellow),
+    ...shuffleArray(groups.green)
+  ];
+}
+
+function startPractice(isBossBattle) { 
+  State.focusMode = !!isBossBattle;
+  const bossTag = $('bossTag');
+  if (bossTag) {
+    bossTag.classList.toggle('hidden', !State.focusMode);
+  }
+  
+  const pool = State.focusMode ? getBossBattlePool() : getPool();
   if (!pool || pool.length === 0) return;
-  let shuffled = shuffleArray(pool);
-  State.sessionWords = shuffled.slice(0, State.wordsPerRound);
+  
+  let selectedWords = State.focusMode ? pool.slice(0, State.wordsPerRound) : shuffleArray(pool).slice(0, State.wordsPerRound);
+  State.sessionWords = shuffleArray(selectedWords);
   State.currentIndex = 0;
   State.results = [];
   State.currentStreak = 0;
+  State.bestRoundStreak = 0;
   
   show('practiceView');
   updatePracticeUI();
@@ -248,23 +308,46 @@ function submitAnswer() {
   
   State.results.push({ word, answer, isCorrect });
   
-  // UX Fix: Clear immediately so the screen never gets stuck!
   input.value = '';
   State.currentIndex++;
+
+  if (!State.appData.attempts[State.activeUser]) {
+    State.appData.attempts[State.activeUser] = {};
+  }
+  if (!State.appData.attempts[State.activeUser][word]) {
+    State.appData.attempts[State.activeUser][word] = { correct: 0, incorrect: 0 };
+  }
+  const att = State.appData.attempts[State.activeUser][word];
 
   if (isCorrect) {
     State.currentStreak++;
     State.bestRoundStreak = Math.max(State.bestRoundStreak, State.currentStreak);
+    att.correct++;
+    
+    let earned = State.activeList === 'Year 5–6' ? 3 : 1;
+    let feedbackMsg = `Correct! +${earned} ฿ 🪙`;
+    
+    if (State.currentStreak > 0 && State.currentStreak % 5 === 0) {
+      earned += 5;
+      feedbackMsg = `Streak of ${State.currentStreak}! +${earned} ฿ 🔥`;
+    }
+    
+    State.appData.bounty[State.activeUser] = (State.appData.bounty[State.activeUser] || 0) + earned;
     AudioSys.play('correct');
-    triggerCelebration(Math.random() > 0.8 ? 'mastered' : 'mini'); // Throw mastered blast sometimes for fun
+    triggerCelebration(Math.random() > 0.8 ? 'mastered' : 'mini');
+    
     if (!State.appData.progress) State.appData.progress = {};
     if (!State.appData.progress[State.activeUser]) State.appData.progress[State.activeUser] = [];
-    State.appData.progress[State.activeUser].push(word);
+    if (!State.appData.progress[State.activeUser].includes(word)) {
+      State.appData.progress[State.activeUser].push(word);
+    }
     try { persistData(); } catch (e) { console.warn("Could not save progress", e); }
-    showFeedback('Correct! 🍄', 'good');
+    showFeedback(feedbackMsg, 'good');
   } else {
     State.currentStreak = 0;
+    att.incorrect++;
     AudioSys.play('incorrect');
+    try { persistData(); } catch (e) { console.warn("Could not save progress", e); }
     showFeedback(`Not quite! The word was: ${word}`, 'warn');
   }
   
@@ -275,30 +358,58 @@ function submitAnswer() {
   } else {
     AudioSys.play('tada');
     
-    // --- Populate Results View ---
     const correctCount = State.results.filter(r => r.isCorrect).length;
     const total = State.results.length;
     const accuracy = Math.round((correctCount / total) * 100) || 0;
     
-    // --- Update Metrics & Check for Unlocks ---
+    let roundBonus = 0;
+    let completionMsg = '';
+    
+    if (correctCount === total) {
+      roundBonus += 25;
+      completionMsg += 'Perfect Round bonus: +25 ฿ 🌟 ';
+    }
+    
+    if (State.focusMode && accuracy >= 80) {
+      roundBonus += 25;
+      completionMsg += 'Boss Battle Victory bonus: +25 ฿ ⚔️ ';
+    }
+    
+    if (roundBonus > 0) {
+      State.appData.bounty[State.activeUser] = (State.appData.bounty[State.activeUser] || 0) + roundBonus;
+      showFeedback(completionMsg.trim(), 'good');
+    }
+    
     const userMetrics = State.appData.metrics[State.activeUser];
     if (userMetrics) {
-        userMetrics.bestStreak = Math.max(userMetrics.bestStreak || 0, State.bestRoundStreak);
+      userMetrics.bestStreak = Math.max(userMetrics.bestStreak || 0, State.bestRoundStreak);
+      userMetrics.rounds = (userMetrics.rounds || 0) + 1;
+      userMetrics.bestExact = Math.max(userMetrics.bestExact || 0, accuracy);
+      if (State.focusMode && correctCount === total) {
+        userMetrics.perfectBossBattle = true;
+      }
+      
+      let secureCount = 0;
+      const userAtts = State.appData.attempts[State.activeUser] || {};
+      Object.keys(userAtts).forEach(w => {
+        if (userAtts[w].correct >= 2) secureCount++;
+      });
+      userMetrics.secureWords = secureCount;
     }
 
     const userThemes = State.appData.themes[State.activeUser];
     if (userMetrics && userThemes) {
-        Object.keys(Config.THEME_DEFS).forEach(themeId => {
-            if (!userThemes.unlocked.includes(themeId)) {
-                const themeDef = Config.THEME_DEFS[themeId];
-                if (themeDef.requirement(userMetrics)) {
-                    userThemes.unlocked.push(themeId);
-                }
-            }
-        });
+      Object.keys(Config.THEME_DEFS).forEach(themeId => {
+        if (!userThemes.unlocked.includes(themeId)) {
+          const themeDef = Config.THEME_DEFS[themeId];
+          if (themeDef.requirement(userMetrics)) {
+            userThemes.unlocked.push(themeId);
+          }
+        }
+      });
     }
     
-    persistData(); // Save new metrics and potential new themes
+    persistData();
     
     if ($('exactScore')) $('exactScore').textContent = `${correctCount}/${total}`;
     if ($('averageAccuracy')) $('averageAccuracy').textContent = `${accuracy}%`;
@@ -381,32 +492,271 @@ function renderHeatmap() {
   if (!grid || !summary) return;
 
   const pool = getPool();
-  const progress = getProgressForUser(State.activeUser);
-  const counts = {};
+  const attempts = State.appData.attempts[State.activeUser] || {};
   
-  progress.forEach(w => { 
-    if (w && typeof w === 'string') counts[w.toLowerCase()] = (counts[w.toLowerCase()] || 0) + 1; 
-  });
-
   grid.innerHTML = '';
-  let secure = 0, improving = 0, notTried = 0;
+  let secure = 0, improving = 0, needsWork = 0, notTried = 0;
 
   pool.forEach(word => {
-    const count = counts[word.toLowerCase()] || 0;
-    const cell = document.createElement('div');
-    cell.textContent = word;
-    // Styling the cell directly to match the app's heatmap requirements
-    cell.style.cssText = 'padding: 4px 8px; margin: 2px; display: inline-block; border-radius: 4px; font-size: 0.8rem; color: #333;';
+    const w = word.toLowerCase();
+    const att = attempts[w] || { correct: 0, incorrect: 0 };
     
-    if (count >= 2) { cell.style.backgroundColor = 'var(--green-soft, #a5d6a7)'; secure++; }
-    else if (count === 1) { cell.style.backgroundColor = 'var(--amber, #ffe082)'; improving++; }
-    else { cell.style.backgroundColor = 'var(--grey, #eeeeee)'; notTried++; }
+    const cell = document.createElement('div');
+    cell.className = 'heatmap-cell';
+    
+    let statusText = '';
+    let bg = '';
+    
+    if (att.correct >= 2) {
+      bg = 'var(--green-soft)';
+      statusText = 'Secure';
+      secure++;
+    } else if (att.correct === 1 && att.incorrect === 0) {
+      bg = 'var(--amber)';
+      statusText = 'Improving';
+      improving++;
+    } else if (att.correct < 2 && att.incorrect > 0) {
+      bg = 'var(--red-soft)';
+      statusText = 'Needs Work';
+      needsWork++;
+    } else {
+      bg = 'var(--grey)';
+      statusText = 'Not Tried';
+      notTried++;
+    }
+    
+    cell.style.backgroundColor = bg;
+    
+    cell.innerHTML = `
+      <div class="heatmap-word">${word}</div>
+      <div class="heatmap-meta">${statusText} (${att.correct}✔/${att.incorrect}✘)</div>
+    `;
     
     grid.appendChild(cell);
   });
 
-  summary.textContent = `Secure: ${secure} | Improving: ${improving} | Not tried: ${notTried}`;
+  summary.textContent = `Secure: ${secure} | Improving: ${improving} | Needs work: ${needsWork} | Not tried: ${notTried}`;
 }
+
+const ShopItems = [
+  { id: 'fizzy', name: 'Can of Fizzy Drink', cost: 150, icon: '🥤', desc: 'A refreshing fizzy drink of choice.' },
+  { id: 'screen', name: '30 Mins Screen Time', cost: 300, icon: '🎮', desc: 'Bonus gaming or video time.' },
+  { id: 'icecream', name: 'Trip for Ice Cream', cost: 800, icon: '🍦', desc: 'A trip to the local parlor for a scoop.' },
+  { id: 'manga', name: 'One Piece Manga Vol', cost: 1500, icon: '📖', desc: 'A physical copy of the next manga book.' },
+  { id: 'pizza', name: 'Yard Sale Pizza', cost: 2000, icon: '🍕', desc: 'Delicious Yard Sale pizza delivery night!' },
+  { id: 'movie', name: 'Movie Night', cost: 2500, icon: '🎬', desc: 'Choice of movie with popcorn & treats.' },
+  { id: 'trip', name: 'Family Day Trip', cost: 5000, icon: '🎡', desc: 'A fun day out (zoo, theme park, or museum).' },
+  { id: 'yesday', name: 'A "Yes" Day', cost: 10000, icon: '👑', desc: 'George makes the rules for a day!' }
+];
+
+function applyTheme(themeId) {
+  document.body.className = '';
+  if (themeId === 'onepiece') {
+    document.body.classList.add('onepiece-theme');
+  } else {
+    document.body.classList.add(`theme-${themeId}`);
+  }
+}
+
+function renderThemes() {
+  const grid = $('themeGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  
+  const userThemes = getThemeState(State.activeUser);
+  
+  Object.keys(Config.THEME_DEFS).forEach(themeId => {
+    const def = Config.THEME_DEFS[themeId];
+    const isUnlocked = userThemes.unlocked.includes(themeId);
+    
+    const card = document.createElement('div');
+    card.className = `theme-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+    
+    const preview = document.createElement('div');
+    preview.className = `theme-preview ${themeId}`;
+    card.appendChild(preview);
+    
+    const name = document.createElement('div');
+    name.style.fontWeight = 'bold';
+    name.textContent = def.name;
+    card.appendChild(name);
+    
+    const note = document.createElement('div');
+    note.className = 'unlock-note';
+    note.textContent = isUnlocked ? (userThemes.selected === themeId ? 'Active' : 'Click to select') : `Locked: ${def.unlockText}`;
+    card.appendChild(note);
+    
+    if (isUnlocked) {
+      card.style.cursor = 'pointer';
+      if (userThemes.selected === themeId) {
+        card.style.borderColor = '#fbbf24';
+        card.style.background = 'var(--soft)';
+      }
+      card.addEventListener('click', () => {
+        userThemes.selected = themeId;
+        persistData();
+        applyTheme(themeId);
+      });
+    }
+    
+    grid.appendChild(card);
+  });
+}
+
+function renderBountyShop() {
+  const grid = $('bountyShopGrid');
+  const balanceLabel = $('shopBountyBalance');
+  const bountyPill = $('bountyPill');
+  if (!grid) return;
+  
+  const userBounty = State.appData.bounty[State.activeUser] || 0;
+  if (balanceLabel) balanceLabel.textContent = `${userBounty} ฿`;
+  if (bountyPill) bountyPill.textContent = `Bounty: ${userBounty} ฿`;
+  
+  grid.innerHTML = '';
+  ShopItems.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'bounty-shop-card';
+    
+    card.innerHTML = `
+      <div class="bounty-shop-icon">${item.icon}</div>
+      <div class="bounty-shop-title">${item.name}</div>
+      <div class="bounty-shop-cost">${item.cost} ฿</div>
+      <div class="tiny muted" style="margin-bottom: 8px; font-size: 0.75rem;">${item.desc}</div>
+    `;
+    
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'bounty-shop-btn';
+    btn.textContent = 'Redeem';
+    
+    const canAfford = userBounty >= item.cost;
+    if (!canAfford) {
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+    }
+    
+    btn.addEventListener('click', () => {
+      redeemTreat(item);
+    });
+    
+    card.appendChild(btn);
+    grid.appendChild(card);
+  });
+}
+
+function redeemTreat(item) {
+  const userBounty = State.appData.bounty[State.activeUser] || 0;
+  if (userBounty < item.cost) return;
+  
+  State.appData.bounty[State.activeUser] -= item.cost;
+  
+  const redemption = {
+    id: Math.random().toString(36).substr(2, 9),
+    item: item.name,
+    cost: item.cost,
+    timestamp: new Date().toISOString(),
+    status: 'pending'
+  };
+  
+  if (!State.appData.redemptions[State.activeUser]) {
+    State.appData.redemptions[State.activeUser] = [];
+  }
+  State.appData.redemptions[State.activeUser].push(redemption);
+  
+  persistData();
+  triggerCelebration('mastered');
+  showFeedback(`Redeemed: ${item.name}! 🏴‍☠️`, 'good');
+}
+
+function renderParentDashboard() {
+  const summary = $('dashboardSummary');
+  const grid = $('dashboardGrid');
+  const redemptionsList = $('pendingRedemptionsList');
+  if (!summary || !grid || !redemptionsList) return;
+  
+  const children = ['George', 'Ben'];
+  summary.textContent = `Parent dashboard showing spelling status and bounty shop requests for George and Ben.`;
+  
+  grid.innerHTML = '';
+  children.forEach(child => {
+    const userMetrics = State.appData.metrics[child] || {};
+    const userBounty = State.appData.bounty[child] || 0;
+    const userProgress = getProgressForUser(child);
+    const attempts = State.appData.attempts[child] || {};
+    
+    const weakWords = Object.keys(attempts).filter(w => attempts[w].incorrect > 0 && attempts[w].correct < 2);
+    
+    const card = document.createElement('div');
+    card.className = 'dashboard-card';
+    card.innerHTML = `
+      <h4 style="margin: 0 0 8px 0; font-family: 'Cinzel', serif; color: #fef08a;">${AVATARS[child] || '👤'} ${child}</h4>
+      <div class="tiny" style="line-height: 1.6;">
+        <div><strong>Bounty Balance:</strong> <span style="color: #fbbf24; font-weight: 700;">${userBounty} ฿</span></div>
+        <div><strong>Mastered Words:</strong> ${userProgress.length}</div>
+        <div><strong>Rounds Played:</strong> ${userMetrics.rounds || 0}</div>
+        <div><strong>Best Streak:</strong> ${userMetrics.bestStreak || 0}</div>
+        <div style="margin-top: 10px;"><strong>Weak Words (${weakWords.length}):</strong></div>
+        <ul class="weak-list" style="margin: 4px 0 0 0; padding-left: 16px;">
+          ${weakWords.length > 0 ? weakWords.slice(0, 5).map(w => `<li>${w}</li>`).join('') : '<li>None! Spelling Ninja! ⚔️</li>'}
+          ${weakWords.length > 5 ? '<li>...and more</li>' : ''}
+        </ul>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+  
+  let pending = [];
+  children.forEach(child => {
+    const userReds = State.appData.redemptions[child] || [];
+    userReds.forEach(r => {
+      if (r.status === 'pending') {
+        pending.push({ child, ...r });
+      }
+    });
+  });
+  
+  if (pending.length === 0) {
+    redemptionsList.innerHTML = '<p class="tiny muted">No pending redemptions to approve.</p>';
+  } else {
+    redemptionsList.innerHTML = pending.map(r => {
+      const date = new Date(r.timestamp).toLocaleDateString();
+      return `
+        <div class="result-item" style="border: 1px solid var(--border); border-radius: 12px; padding: 10px; margin-top: 8px;">
+          <div>
+            <strong>${r.child}</strong> requested <strong>${r.item}</strong> (${r.cost} ฿) on ${date}
+          </div>
+          <div class="controls" style="margin-top: 8px;">
+            <button type="button" class="primary" style="padding: 4px 10px !important; font-size: 0.75rem !important;" onclick="approveRedemption('${r.child}', '${r.id}')">Approve & Deliver</button>
+            <button type="button" class="secondary" style="padding: 4px 10px !important; font-size: 0.75rem !important;" onclick="cancelRedemption('${r.child}', '${r.id}')">Deny / Refund</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+window.approveRedemption = function(child, id) {
+  const reds = State.appData.redemptions[child] || [];
+  const idx = reds.findIndex(r => r.id === id);
+  if (idx !== -1) {
+    reds[idx].status = 'approved';
+    persistData();
+    showFeedback(`Approved redemption for ${child}!`, 'good');
+  }
+};
+
+window.cancelRedemption = function(child, id) {
+  const reds = State.appData.redemptions[child] || [];
+  const idx = reds.findIndex(r => r.id === id);
+  if (idx !== -1) {
+    const item = reds[idx];
+    State.appData.bounty[child] += item.cost;
+    reds.splice(idx, 1);
+    persistData();
+    showFeedback(`Denied & refunded redemption for ${child}.`, 'warn');
+  }
+};
 
 // --- Fun Visual Rewards ---
 function triggerCelebration(type = 'mini') {
@@ -414,7 +764,6 @@ function triggerCelebration(type = 'mini') {
   if (!layer) return;
   
   const particle = document.createElement('div');
-  // Choose emojis based on the type of achievement
   particle.textContent = type === 'mastered' ? '⭐' : '🪙';
   particle.style.position = 'absolute';
   particle.style.left = Math.random() * 80 + 10 + '%';
@@ -425,7 +774,6 @@ function triggerCelebration(type = 'mini') {
   
   layer.appendChild(particle);
   
-  // Animate upwards and fade out
   requestAnimationFrame(() => {
     particle.style.transform = `translateY(-100px) scale(${type === 'mastered' ? 1.5 : 1})`;
     particle.style.opacity = '0';
@@ -436,10 +784,8 @@ function triggerCelebration(type = 'mini') {
 
 State.appData = loadLocalData();
 
-// Refactor all variable references to use State and Config
-// Utility function to replace all old variable references
 function getPool() { return Config.WORD_SETS[State.activeList] || []; }
-function getThemeState(user) { return State.appData.themes[user] || { unlocked: ['volcano'], selected: 'volcano' }; }
+function getThemeState(user) { return State.appData.themes[user] || { unlocked: ['onepiece', 'volcano'], selected: 'onepiece' }; }
 function saveLocalData() { localStorage.setItem('simple-spelling-app-data', JSON.stringify(State.appData)); }
 function savePreferredUser() { localStorage.setItem('simple-spelling-active-user', State.activeUser); }
 function loadPreferredUser() {
@@ -456,8 +802,14 @@ function persistData() {
   }
 }
 
-// Update event listeners to use State object
-userButtons.forEach(btn => btn.addEventListener('click', () => { State.activeUser = btn.dataset.user; savePreferredUser(); renderAll(); show('startView'); }));
+userButtons.forEach(btn => btn.addEventListener('click', () => { 
+  State.activeUser = btn.dataset.user; 
+  savePreferredUser(); 
+  const userThemes = getThemeState(State.activeUser);
+  applyTheme(userThemes.selected || 'onepiece');
+  renderAll(); 
+  show('startView'); 
+}));
 yearButtons.forEach(btn => btn.addEventListener('click', () => { State.activeList = btn.dataset.year; renderAll(); show('startView'); }));
 countButtons.forEach(btn => btn.addEventListener('click', () => { State.wordsPerRound = Number(btn.dataset.count); renderAll(); }));
 if ($('toggleAutoSpeak')) $('toggleAutoSpeak').addEventListener('click', () => { State.autoSpeak = !State.autoSpeak; renderAll(); });
@@ -501,10 +853,13 @@ async function setupFirebaseSync() {
   }
 }
 
-// Initialize App
 loadPreferredUser();
 initSpeech();
 show('startView');
+if (State.appData) {
+  const userThemes = getThemeState(State.activeUser);
+  applyTheme(userThemes.selected || 'onepiece');
+}
 renderAll();
 updateSyncUI('Local app ready.');
 if (Config.AUTO_SYNC) setupFirebaseSync();
