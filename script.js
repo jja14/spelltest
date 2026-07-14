@@ -567,9 +567,9 @@ function renderHeatmap() {
 }
 
 const ShopItems = [
-  { id: 'fizzy', name: 'Can of Fizzy Drink', cost: 150, icon: '🥤', desc: 'A refreshing fizzy drink of choice.' },
-  { id: 'screen', name: '30 Mins Screen Time', cost: 300, icon: '🎮', desc: 'Bonus gaming or video time.' },
-  { id: 'icecream', name: 'Trip for Ice Cream', cost: 800, icon: '🍦', desc: 'A trip to the local parlor for a scoop.' },
+  { id: 'fizzy', name: 'Can of Fizzy Drink', cost: 250, icon: '🥤', desc: 'A refreshing fizzy drink of choice.' },
+  { id: 'screen', name: '30 Mins Screen Time', cost: 600, icon: '🎮', desc: 'Bonus gaming or video time.' },
+  { id: 'icecream', name: 'Trip for Ice Cream', cost: 1000, icon: '🍦', desc: 'A trip to the local parlor for a scoop.' },
   { id: 'manga', name: 'One Piece Manga Vol', cost: 1500, icon: '📖', desc: 'A physical copy of the next manga book.' },
   { id: 'pizza', name: 'Yard Sale Pizza', cost: 2000, icon: '🍕', desc: 'Delicious Yard Sale pizza delivery night!' },
   { id: 'movie', name: 'Movie Night', cost: 2500, icon: '🎬', desc: 'Choice of movie with popcorn & treats.' },
