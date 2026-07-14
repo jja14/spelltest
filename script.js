@@ -352,7 +352,7 @@ function submitAnswer() {
     State.bestRoundStreak = Math.max(State.bestRoundStreak, State.currentStreak);
     att.correct++;
     
-    let earned = State.activeList === 'Year 5–6' ? 3 : 1;
+    let earned = State.activeList === 'Year 5–6' ? 10 : 5;
     let feedbackMsg = `Correct! +${earned} ฿ 🪙`;
     
     if (State.currentStreak > 0 && State.currentStreak % 5 === 0) {
