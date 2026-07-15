@@ -104,7 +104,7 @@
       overflow: hidden;
     }
     .section { margin-top: 20px; }
-    .hidden { display: none; }
+    .hidden { display: none !important; }
     .progress {
       height: 14px;
       width: 100%;
