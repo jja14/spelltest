@@ -12,6 +12,12 @@ const Config = {
     ice: { name: 'Ice Cave', unlockText: '90%+ exact in one round', requirement: (m) => m.bestExact >= 90 },
     gold: { name: 'Gold Mode', unlockText: 'Perfect Boss Battle', requirement: (m) => m.perfectBossBattle }
   },
+  USER_STANDARD_LISTS: {
+    George: 'Year 3–4',
+    Ben: 'Year 5–6',
+    Lucy: 'Year 3–4',
+    James: 'Year 5–6'
+  },
   DEFAULT_DATA: {
     progress: { George: [], Ben: [], Lucy: [], James: [] },
     themes: {
@@ -369,7 +375,8 @@ function submitAnswer() {
     State.bestRoundStreak = Math.max(State.bestRoundStreak, State.currentStreak);
     att.correct++;
     
-    let earned = State.activeList === 'Year 5–6' ? 10 : 5;
+    const standardList = Config.USER_STANDARD_LISTS[State.activeUser] || 'Year 3–4';
+    let earned = (standardList === 'Year 3–4' && State.activeList === 'Year 5–6') ? 10 : 5;
     let feedbackMsg = `Correct! +${earned} ฿ 🪙`;
     
     if (State.currentStreak > 0 && State.currentStreak % 5 === 0) {
