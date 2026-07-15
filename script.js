@@ -15,7 +15,7 @@ const Config = {
   USER_STANDARD_LISTS: {
     George: 'Year 3–4',
     Ben: 'Year 5–6',
-    Lucy: 'Year 3–4',
+    Lucy: 'Year 5–6',
     James: 'Year 5–6'
   },
   DEFAULT_DATA: {
