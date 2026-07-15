@@ -166,6 +166,23 @@ function renderAll() {
   if ($('activeListName')) $('activeListName').textContent = State.activeList;
   if ($('activeCount')) $('activeCount').textContent = State.wordsPerRound;
   
+  if (State.appData) {
+    const userMetrics = State.appData.metrics[State.activeUser] || { bestStreak: 0 };
+    const bestStreak = userMetrics.bestStreak || 0;
+    if ($('streakPill')) $('streakPill').textContent = `Streak: ${bestStreak} 🔥`;
+    
+    const userProgress = getProgressForUser(State.activeUser);
+    const masteredCount = userProgress.length;
+    let title = 'Spelling Recruit';
+    if (masteredCount >= 50) title = 'Spelling Pirate King 👑';
+    else if (masteredCount >= 35) title = 'Spelling Captain 🏴‍☠️';
+    else if (masteredCount >= 20) title = 'Spelling First Mate ⚔️';
+    else if (masteredCount >= 10) title = 'Spelling Swashbuckler 🗡️';
+    else if (masteredCount >= 5) title = 'Spelling Apprentice ⚓';
+    
+    if ($('titlePill')) $('titlePill').textContent = title;
+  }
+  
   // Render Family Goal Banner
   let familyBanner = $('familyBanner');
   if (!familyBanner) {
