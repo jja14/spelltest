@@ -1,8 +1,11 @@
 const Config = {
-  WORD_SETS: {
-    "Year 3–4": ["accident","actual","address","answer","appear","arrive","believe","bicycle","breath","breathe","build","busy","business","calendar","caught","centre","century","certain","circle","complete","consider","continue","decide","describe","different","difficult","disappear","early","earth","eight","eighth","enough","exercise","experience","experiment","extreme","famous","favourite","february","forward","forwards","fruit","grammar","group","guard","guide","heard","heart","height","history","imagine","increase","important","interest","island","knowledge","learn","length","library","material","medicine","mention","minute","natural","naughty","notice","occasion","occasionally","often","opposite","ordinary","particular","peculiar","perhaps","popular","position","possess","possession","possible","potatoes","pressure","probably","promise","purpose","quarter","question","recent","regular","reign","remember","sentence","separate","special","straight","strange","strength","suppose","surprise","therefore","though","although","thought","through","various","weight","woman","women"],
-    "Year 5–6": ["accommodate","accompany","according","achieve","aggressive","amateur","ancient","apparent","appreciate","attached","available","average","awkward","bargain","bruise","category","cemetery","committee","communicate","community","competition","conscience","conscious","controversy","convenience","correspond","criticise","curiosity","definite","desperate","determined","develop","dictionary","disastrous","embarrass","environment","equip","equipment","especially","exaggerate","excellent","existence","explanation","familiar","foreign","forty","frequently","government","guarantee","harass","hindrance","identity","immediate","immediately","individual","interfere","interrupt","language","leisure","lightning","marvellous","mischievous","muscle","necessary","neighbour","nuisance","occupy","occur","opportunity","parliament","persuade","physical","prejudice","privilege","profession","programme","pronunciation","queue","recognise","recommend","relevant","restaurant","rhyme","rhythm","sacrifice","secretary","shoulder","signature","sincere","sincerely","soldier","stomach","sufficient","suggest","symbol","system","temperature","thorough","twelfth","variety","vegetable","vehicle","yacht"]
+  WORD_SETS: (window.WordDatabase && window.WordDatabase.WORD_SETS) ? window.WordDatabase.WORD_SETS : {
+    "All Words": [],
+    "Quest (11+)": [],
+    "Year 5–6": [],
+    "Year 3–4": []
   },
+  WORD_METADATA: (window.WordDatabase && window.WordDatabase.WORD_METADATA) ? window.WordDatabase.WORD_METADATA : {},
   THEME_DEFS: {
     onepiece: { name: 'Straw Hat Crew', unlockText: 'Default theme', requirement: () => true },
     volcano: { name: 'Volcano', unlockText: 'Starter theme', requirement: () => true },
@@ -13,10 +16,10 @@ const Config = {
     gold: { name: 'Gold Mode', unlockText: 'Perfect Boss Battle', requirement: (m) => m.perfectBossBattle }
   },
   USER_STANDARD_LISTS: {
-    George: 'Year 3–4',
-    Ben: 'Year 5–6',
-    Lucy: 'Year 5–6',
-    James: 'Year 5–6'
+    George: 'All Words',
+    Ben: 'All Words',
+    Lucy: 'All Words',
+    James: 'All Words'
   },
   DEFAULT_DATA: {
     progress: { George: [], Ben: [], Lucy: [], James: [] },
@@ -52,7 +55,7 @@ const Config = {
 
 let State = {
   activeUser: 'George',
-  activeList: 'Year 3–4',
+  activeList: 'All Words',
   wordsPerRound: 10,
   autoSpeak: true,
   sessionWords: [],
@@ -68,6 +71,8 @@ let State = {
   currentStreak: 0,
   bestRoundStreak: 0,
   lastHeatmapStates: {},
+  heatmapListFilter: 'all',
+  heatmapSearchQuery: '',
 };
 
 // --- DOM Selectors & Utility Functions ---
@@ -77,6 +82,27 @@ const yearButtons = document.querySelectorAll('.year-btn');
 const countButtons = document.querySelectorAll('.count-btn');
 
 const AVATARS = { George: '🦖', Ben: '🤖', Lucy: '🦄', James: '🧙‍♂️' };
+
+function getWordTagsHTML(word) {
+  if (!word) return '';
+  const meta = Config.WORD_METADATA[word.toLowerCase()];
+  if (!meta || !meta.lists || meta.lists.length === 0) return '';
+  return meta.lists.map(listName => {
+    let cls = 'tag-quest';
+    let label = 'Quest';
+    if (listName === 'Year 5–6') {
+      cls = 'tag-y56';
+      label = 'Y5–6';
+    } else if (listName === 'Year 3–4') {
+      cls = 'tag-y34';
+      label = 'Y3–4';
+    } else if (listName.includes('Quest')) {
+      cls = 'tag-quest';
+      label = 'Quest 11+';
+    }
+    return `<span class="word-tag ${cls}">${label}</span>`;
+  }).join(' ');
+}
 
 // --- Game Audio System ---
 const AudioSys = {
@@ -270,6 +296,10 @@ function updatePracticeUI() {
     const pct = (State.currentIndex / State.sessionWords.length) * 100;
     $('progressBar').style.width = `${pct}%`;
   }
+  const currentWord = State.sessionWords[State.currentIndex];
+  if ($('wordMetaTags')) {
+    $('wordMetaTags').innerHTML = currentWord ? getWordTagsHTML(currentWord) : '';
+  }
 }
 
 function showFeedback(msg, type) {
@@ -375,8 +405,8 @@ function submitAnswer() {
     State.bestRoundStreak = Math.max(State.bestRoundStreak, State.currentStreak);
     att.correct++;
     
-    const standardList = Config.USER_STANDARD_LISTS[State.activeUser] || 'Year 3–4';
-    let earned = (standardList === 'Year 3–4' && State.activeList === 'Year 5–6') ? 10 : 5;
+    const standardList = Config.USER_STANDARD_LISTS[State.activeUser] || 'All Words';
+    let earned = 5;
     let feedbackMsg = `Correct! +${earned} ฿ 🪙`;
     
     if (State.currentStreak > 0 && State.currentStreak % 5 === 0) {
@@ -471,7 +501,11 @@ function submitAnswer() {
     if (listElem) {
       listElem.innerHTML = State.results.map(r => {
         const userAnswer = r.answer && r.answer.trim() ? r.answer : '(left blank)';
-        return `<div style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>${r.word}</strong>: ${r.isCorrect ? '✅' : `❌ (you typed: <em>${userAnswer}</em>)`}</div>`;
+        const tags = getWordTagsHTML(r.word);
+        return `<div style="padding: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div><strong>${r.word}</strong>: ${r.isCorrect ? '✅' : `❌ (you typed: <em>${userAnswer}</em>)`}</div>
+          <div class="heatmap-tags" style="margin: 0;">${tags}</div>
+        </div>`;
       }).join('');
     }
 
@@ -543,9 +577,28 @@ function renderHeatmap() {
   const summary = $('heatmapSummary');
   if (!grid || !summary) return;
 
-  const pool = getPool();
+  let pool = getPool();
   const attempts = State.appData.attempts[State.activeUser] || {};
   
+  // Filter by list if filter is set
+  if (State.heatmapListFilter && State.heatmapListFilter !== 'all') {
+    pool = pool.filter(word => {
+      const meta = Config.WORD_METADATA[word.toLowerCase()];
+      return meta && meta.lists && meta.lists.includes(State.heatmapListFilter);
+    });
+  }
+
+  // Filter by search query if present
+  if (State.heatmapSearchQuery && State.heatmapSearchQuery.trim()) {
+    const q = State.heatmapSearchQuery.trim().toLowerCase();
+    pool = pool.filter(word => word.toLowerCase().includes(q));
+  }
+
+  // Update active state on heatmap filter buttons
+  document.querySelectorAll('.heatmap-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.listFilter === (State.heatmapListFilter || 'all'));
+  });
+
   grid.innerHTML = '';
   let secure = 0, improving = 0, needsWork = 0, notTried = 0;
 
@@ -580,14 +633,18 @@ function renderHeatmap() {
     cell.style.backgroundColor = bg;
     
     cell.innerHTML = `
-      <div class="heatmap-word">${word}</div>
+      <div>
+        <div class="heatmap-word">${word}</div>
+        <div class="heatmap-tags">${getWordTagsHTML(word)}</div>
+      </div>
       <div class="heatmap-meta">${statusText} (${att.correct}✔/${att.incorrect}✘)</div>
     `;
     
     grid.appendChild(cell);
   });
 
-  summary.textContent = `Secure: ${secure} | Improving: ${improving} | Needs work: ${needsWork} | Not tried: ${notTried}`;
+  const filterLabel = State.heatmapListFilter && State.heatmapListFilter !== 'all' ? ` (${State.heatmapListFilter})` : '';
+  summary.textContent = `Showing ${pool.length} words${filterLabel}: Secure: ${secure} | Improving: ${improving} | Needs work: ${needsWork} | Not tried: ${notTried}`;
 }
 
 const ShopItems = [
@@ -750,7 +807,7 @@ function renderParentDashboard() {
         <div><strong>Best Streak:</strong> ${userMetrics.bestStreak || 0}</div>
         <div style="margin-top: 10px;"><strong>Weak Words (${weakWords.length}):</strong></div>
         <ul class="weak-list" style="margin: 4px 0 0 0; padding-left: 16px;">
-          ${weakWords.length > 0 ? weakWords.slice(0, 5).map(w => `<li>${w}</li>`).join('') : '<li>None! Spelling Ninja! ⚔️</li>'}
+          ${weakWords.length > 0 ? weakWords.slice(0, 5).map(w => `<li style="margin-bottom: 4px;"><strong>${w}</strong> ${getWordTagsHTML(w)}</li>`).join('') : '<li>None! Spelling Ninja! ⚔️</li>'}
           ${weakWords.length > 5 ? '<li>...and more</li>' : ''}
         </ul>
       </div>
@@ -836,7 +893,7 @@ function triggerCelebration(type = 'mini') {
 
 State.appData = loadLocalData();
 
-function getPool() { return Config.WORD_SETS[State.activeList] || []; }
+function getPool() { return Config.WORD_SETS[State.activeList] || Config.WORD_SETS['All Words'] || []; }
 function getThemeState(user) { return State.appData.themes[user] || { unlocked: ['onepiece', 'volcano'], selected: 'onepiece' }; }
 function saveLocalData() { localStorage.setItem('simple-spelling-app-data', JSON.stringify(State.appData)); }
 function savePreferredUser() { localStorage.setItem('simple-spelling-active-user', State.activeUser); }
@@ -863,6 +920,18 @@ userButtons.forEach(btn => btn.addEventListener('click', () => {
   show('startView'); 
 }));
 yearButtons.forEach(btn => btn.addEventListener('click', () => { State.activeList = btn.dataset.year; renderAll(); show('startView'); }));
+document.querySelectorAll('.heatmap-filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    State.heatmapListFilter = btn.dataset.listFilter;
+    renderHeatmap();
+  });
+});
+if ($('heatmapSearchInput')) {
+  $('heatmapSearchInput').addEventListener('input', (e) => {
+    State.heatmapSearchQuery = e.target.value;
+    renderHeatmap();
+  });
+}
 countButtons.forEach(btn => btn.addEventListener('click', () => { State.wordsPerRound = Number(btn.dataset.count); renderAll(); }));
 if ($('toggleAutoSpeak')) $('toggleAutoSpeak').addEventListener('click', () => { State.autoSpeak = !State.autoSpeak; renderAll(); });
 if ($('newRoundBtn')) $('newRoundBtn').addEventListener('click', () => startPractice(false));

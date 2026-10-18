@@ -44,7 +44,7 @@
       box-shadow: 0px 0px 0px #000 !important;
       transform: translate(4px, 4px);
     }
-    .mario-theme .user-btn.active, .mario-theme .year-btn.active, .mario-theme .count-btn.active {
+    .mario-theme .user-btn.active, .mario-theme .year-btn.active, .mario-theme .count-btn.active, .mario-theme .heatmap-filter-btn.active {
       background-color: #f8d820 !important; /* Coin Yellow */
       color: #000 !important;
     }
@@ -92,7 +92,7 @@
       <div class="card" id="activeUserCard">
         <div class="tiny muted">Active Pirate</div>
         <h3 id="activeUserName">George</h3>
-        <div class="muted"><span id="activeListName">Year 3–4</span> · <span id="activeCount">10</span> words per round</div>
+        <div class="muted"><span id="activeListName">All Words</span> · <span id="activeCount">10</span> words per round</div>
         <div class="streak-row section" style="margin-top:12px;">
           <div class="streak-pill" id="streakPill">Streak: 0 🔥</div>
           <div class="streak-pill" id="bountyPill">Bounty: 0 ฿</div>
@@ -109,8 +109,10 @@
           <button type="button" class="user-btn" data-user="Lucy">Lucy</button>
           <button type="button" class="user-btn" data-user="James">James</button>
 
-          <button type="button" class="year-btn active" data-year="Year 3–4">Year 3–4</button>
-          <button type="button" class="year-btn" data-year="Year 5–6">Year 5–6</button>
+          <button type="button" class="year-btn active" data-year="All Words">All Words (609)</button>
+          <button type="button" class="year-btn" data-year="Quest (11+)">Quest 11+ (500)</button>
+          <button type="button" class="year-btn" data-year="Year 5–6">Year 5–6 (103)</button>
+          <button type="button" class="year-btn" data-year="Year 3–4">Year 3–4 (107)</button>
 
           <button type="button" class="count-btn" data-count="5">5 words</button>
           <button type="button" class="count-btn active" data-count="10">10 words</button>
@@ -137,6 +139,7 @@
           <div class="panel section" id="listenPanel">
             <p><strong>Listen to the word</strong></p>
             <div id="bossTag" class="boss-tag hidden">Boss Battle active</div>
+            <div id="wordMetaTags" class="word-meta-tags"></div>
             <div class="controls" style="justify-content: center; margin-top:12px;">
               <button type="button" id="sayWordBtn" class="primary">Say word</button>
               <button type="button" id="speakAnswerBtn" class="hidden">Speak answer</button>
@@ -251,12 +254,22 @@
           <div class="controls section" style="margin-top:12px;">
             <button type="button" id="refreshHeatmapBtn">Refresh heatmap</button>
           </div>
+          <div class="heatmap-filters">
+            <input type="text" id="heatmapSearchInput" class="heatmap-search-input" placeholder="🔍 Search words..." />
+            <div class="controls" style="gap: 6px;">
+              <button type="button" class="heatmap-filter-btn active" data-list-filter="all">All</button>
+              <button type="button" class="heatmap-filter-btn" data-list-filter="Quest (11+)">Quest 11+</button>
+              <button type="button" class="heatmap-filter-btn" data-list-filter="Year 5–6">Year 5–6</button>
+              <button type="button" class="heatmap-filter-btn" data-list-filter="Year 3–4">Year 3–4</button>
+            </div>
+          </div>
           <p id="heatmapSummary" class="tiny muted" style="margin-top: 14px;">No heatmap data yet.</p>
           <div id="heatmapGrid" class="heatmap-grid"></div>
         </div>
       </div>
     </div>
   </div>
-  <script src="script.js?v=2"></script>
+  <script src="words.js"></script>
+  <script src="script.js?v=3"></script>
 </body>
 </html>

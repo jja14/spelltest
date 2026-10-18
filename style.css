@@ -544,6 +544,91 @@
       font-size: 0.8rem !important;
     }
 
+    /* Word Metadata Badges */
+    .word-meta-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 8px;
+    }
+    .word-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+      line-height: 1.2;
+    }
+    .word-tag.tag-quest {
+      background: rgba(168, 85, 247, 0.22);
+      color: #d8b4fe;
+      border-color: rgba(168, 85, 247, 0.5);
+    }
+    .word-tag.tag-y56 {
+      background: rgba(59, 130, 246, 0.22);
+      color: #93c5fd;
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+    .word-tag.tag-y34 {
+      background: rgba(20, 184, 166, 0.22);
+      color: #5eead4;
+      border-color: rgba(20, 184, 166, 0.5);
+    }
+
+    .heatmap-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      margin-top: 5px;
+    }
+    .heatmap-tags .word-tag {
+      font-size: 0.62rem;
+      padding: 1px 5px;
+    }
+
+    /* Heatmap filters and search */
+    .heatmap-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 12px;
+    }
+    .heatmap-filter-btn {
+      padding: 6px 12px !important;
+      font-size: 0.78rem !important;
+      border-radius: 8px !important;
+      background: var(--soft);
+      border: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .heatmap-filter-btn.active {
+      background: linear-gradient(135deg, var(--primary), var(--primary-2)) !important;
+      color: white !important;
+      border-color: #fb923c !important;
+    }
+    .heatmap-search-input {
+      flex: 1;
+      min-width: 160px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+    }
+    .heatmap-search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
+    }
+
     /* Heatmap Premium Layout overrides */
     .heatmap-cell {
       display: flex !important;
@@ -552,7 +637,7 @@
       border: 1px solid rgba(255,255,255,0.08) !important;
       border-radius: 12px !important;
       padding: 10px 8px !important;
-      min-height: 78px !important;
+      min-height: 82px !important;
       color: #fff !important;
       font-weight: 600;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
