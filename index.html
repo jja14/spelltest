@@ -121,24 +121,33 @@
           <button type="button" id="toggleAutoSpeak">Auto-speak on</button>
           <button type="button" id="newRoundBtn" class="secondary">New round</button>
           <button type="button" id="focusRoundBtn" class="secondary">Boss Battle</button>
+          <button type="button" id="survivalRoundBtn" class="secondary" style="border-color: #ef4444; color: #fca5a5;">⚡ Survival (3 ❤️)</button>
         </div>
 
         <div id="startView" class="panel section">
           <h2>Ready to begin?</h2>
-          <p class="muted">Choose a year group, then press start. Boss Battle automatically targets weak, improving, and unattempted words first.</p>
-          <button type="button" id="startBtn" class="primary">Start practice</button>
+          <p class="muted">Choose a word list, then select your game mode: Standard practice, Boss Battle, or Survival Run with 3 lives!</p>
+          <div class="controls" style="margin-top: 14px;">
+            <button type="button" id="startBtn" class="primary">Start practice</button>
+            <button type="button" id="startSurvivalBtn" class="secondary" style="border-color: #ef4444; color: #fca5a5; background: rgba(239,68,68,0.15);">⚔️ Start Survival (3 ❤️)</button>
+          </div>
         </div>
 
         <div id="practiceView" class="hidden section">
-          <div class="row muted" style="justify-content: space-between;">
+          <div id="standardPracticeHeader" class="row muted" style="justify-content: space-between;">
             <span id="wordPosition">Word 1 of 10</span>
             <span id="answeredCount">0 answered</span>
+          </div>
+          <div id="survivalPracticeHeader" class="row hidden" style="justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div id="livesContainer" class="lives-container">❤️❤️❤️</div>
+            <div class="streak-pill" id="survivalRunPill" style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #fca5a5;">Run: 0 words 🔥</div>
           </div>
           <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
 
           <div class="panel section" id="listenPanel">
             <p><strong>Listen to the word</strong></p>
             <div id="bossTag" class="boss-tag hidden">Boss Battle active</div>
+            <div id="survivalTag" class="survival-tag hidden" style="background: linear-gradient(135deg, #b91c1c, #ef4444); color: white; display: inline-block; padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">⚡ Survival Run · 3 Lives</div>
             <div id="wordMetaTags" class="word-meta-tags"></div>
             <div class="controls" style="justify-content: center; margin-top:12px;">
               <button type="button" id="sayWordBtn" class="primary">Say word</button>
@@ -176,28 +185,37 @@
 
         <div id="resultsView" class="hidden section">
           <div class="panel">
-            <h2>Round complete</h2>
-            <p class="muted">A clear summary with exact score and overall spelling accuracy.</p>
+            <h2 id="resultsHeading">Round complete</h2>
+            <p id="resultsSubheading" class="muted">A clear summary with exact score and overall spelling accuracy.</p>
           </div>
 
           <div class="summary section">
             <div class="summary-box">
-              <div class="tiny muted">Exact score</div>
+              <div id="scoreLabel" class="tiny muted">Exact score</div>
               <div id="exactScore" class="big">0/0</div>
             </div>
             <div class="summary-box">
-              <div class="tiny muted">Average accuracy</div>
+              <div id="accuracyLabel" class="tiny muted">Average accuracy</div>
               <div id="averageAccuracy" class="big">0%</div>
             </div>
             <div class="summary-box">
-              <div class="tiny muted">Rating</div>
+              <div id="ratingLabel" class="tiny muted">Rating</div>
               <div id="roundRating" class="big" style="font-size: 1.2rem;">Good effort</div>
             </div>
+          </div>
+
+          <div id="resultsLeaderboardBox" class="section summary-box hidden" style="border: 2px solid #fbbf24; background: rgba(30,41,59,0.7);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong>Survival Leaderboard 🏆</strong>
+              <span id="resultsPersonalBestNote" class="tiny" style="color: #fbbf24; font-weight:700;"></span>
+            </div>
+            <div id="resultsLeaderboardList" class="dashboard-grid" style="margin-top:10px;"></div>
           </div>
 
           <div id="resultsList" class="section"></div>
           <div class="controls section">
             <button type="button" id="retryBtn" class="primary">Try another round</button>
+            <button type="button" id="retrySurvivalBtn" class="secondary hidden" style="border-color: #ef4444; color: #fca5a5;">⚡ Play Survival Run Again</button>
           </div>
         </div>
       </div>
@@ -223,6 +241,15 @@
           <div><strong>Theme Locker</strong></div>
           <p class="tiny muted">Earn themes by playing well. Volcano starts unlocked.</p>
           <div id="themeGrid" class="theme-grid"></div>
+        </div>
+
+        <div class="section summary-box" id="survivalLeaderboardBox">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong>Survival Leaderboard 🏆</strong>
+            <span class="tiny" style="color: #fbbf24; font-weight:700;">Longest Runs (3 Lives)</span>
+          </div>
+          <p class="tiny muted">How many words can you spell before getting 3 wrong? Current family rankings:</p>
+          <div id="survivalLeaderboardList" class="dashboard-grid" style="margin-top:10px;"></div>
         </div>
 
         <div class="section summary-box" id="bountyShopBox">

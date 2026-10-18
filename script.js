@@ -38,6 +38,7 @@ const Config = {
     bounty: { George: 0, Ben: 0, Lucy: 0, James: 0 },
     attempts: { George: {}, Ben: {}, Lucy: {}, James: {} },
     redemptions: { George: [], Ben: [], Lucy: [], James: [] },
+    survivalHighScores: { George: 0, Ben: 0, Lucy: 0, James: 0 },
     updatedAt: null
   },
   AUTO_SYNC: true,
@@ -62,6 +63,9 @@ let State = {
   currentIndex: 0,
   results: [],
   focusMode: false,
+  survivalMode: false,
+  lives: 3,
+  survivalRun: 0,
   recognition: null,
   listening: false,
   appData: null,
@@ -149,6 +153,24 @@ const AudioSys = {
         gain.gain.setValueAtTime(0.1, now);
         gain.gain.linearRampToValueAtTime(0, now + 1.0);
         osc.start(now); osc.stop(now + 1.0);
+      } else if (type === 'life-lost') {
+        // Dramatic low buzz/heartbreak
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.3);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.start(now); osc.stop(now + 0.3);
+      } else if (type === 'gameover') {
+        // Minor descending game over sequence
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(415.3, now + 0.2);
+        osc.frequency.setValueAtTime(392, now + 0.4);
+        osc.frequency.setValueAtTime(349.2, now + 0.6);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.linearRampToValueAtTime(0, now + 1.2);
+        osc.start(now); osc.stop(now + 1.2);
       }
     } catch (e) { console.warn("Audio playback error", e); }
   }
@@ -162,6 +184,7 @@ function ensureShape(data) {
   if (!data.bounty) data.bounty = {};
   if (!data.attempts) data.attempts = {};
   if (!data.redemptions) data.redemptions = {};
+  if (!data.survivalHighScores) data.survivalHighScores = {};
   const users = ['George', 'Ben', 'Lucy', 'James'];
   users.forEach(u => {
     if (!Array.isArray(data.progress[u])) data.progress[u] = [];
@@ -172,6 +195,7 @@ function ensureShape(data) {
     if (u === 'George' && data.bounty[u] < 142) data.bounty[u] = 142;
     if (!data.attempts[u]) data.attempts[u] = {};
     if (!Array.isArray(data.redemptions[u])) data.redemptions[u] = [];
+    if (typeof data.survivalHighScores[u] !== 'number') data.survivalHighScores[u] = 0;
   });
   return data; 
 }
@@ -267,6 +291,7 @@ function renderAll() {
   renderHeatmap();
   renderThemes();
   renderBountyShop();
+  renderSurvivalLeaderboard('survivalLeaderboardList');
 
   const isParent = ['Lucy', 'James'].includes(State.activeUser);
   if ($('parentDashboard')) {
@@ -290,12 +315,41 @@ function updateSyncUI(msg) {
 }
 
 function updatePracticeUI() {
-  if ($('wordPosition')) $('wordPosition').textContent = `Word ${State.currentIndex + 1} of ${State.sessionWords.length}`;
-  if ($('answeredCount')) $('answeredCount').textContent = `${State.currentIndex} answered`;
-  if ($('progressBar')) {
-    const pct = (State.currentIndex / State.sessionWords.length) * 100;
-    $('progressBar').style.width = `${pct}%`;
+  if (State.survivalMode) {
+    if ($('standardPracticeHeader')) $('standardPracticeHeader').classList.add('hidden');
+    if ($('survivalPracticeHeader')) $('survivalPracticeHeader').classList.remove('hidden');
+    if ($('bossTag')) $('bossTag').classList.add('hidden');
+    if ($('survivalTag')) $('survivalTag').classList.remove('hidden');
+
+    if ($('livesContainer')) {
+      const hearts = ['🖤', '🖤', '🖤'];
+      for (let i = 0; i < Math.max(0, State.lives); i++) {
+        hearts[i] = '❤️';
+      }
+      $('livesContainer').textContent = hearts.join('');
+    }
+    if ($('survivalRunPill')) {
+      $('survivalRunPill').textContent = `Run: ${State.survivalRun} words 🔥`;
+    }
+    if ($('progressBar')) {
+      const step = State.survivalRun % 5;
+      const pct = Math.max(12, (step / 5) * 100);
+      $('progressBar').style.width = `${pct}%`;
+    }
+  } else {
+    if ($('standardPracticeHeader')) $('standardPracticeHeader').classList.remove('hidden');
+    if ($('survivalPracticeHeader')) $('survivalPracticeHeader').classList.add('hidden');
+    if ($('bossTag')) $('bossTag').classList.toggle('hidden', !State.focusMode);
+    if ($('survivalTag')) $('survivalTag').classList.add('hidden');
+
+    if ($('wordPosition')) $('wordPosition').textContent = `Word ${State.currentIndex + 1} of ${State.sessionWords.length}`;
+    if ($('answeredCount')) $('answeredCount').textContent = `${State.currentIndex} answered`;
+    if ($('progressBar')) {
+      const pct = (State.currentIndex / State.sessionWords.length) * 100;
+      $('progressBar').style.width = `${pct}%`;
+    }
   }
+
   const currentWord = State.sessionWords[State.currentIndex];
   if ($('wordMetaTags')) {
     $('wordMetaTags').innerHTML = currentWord ? getWordTagsHTML(currentWord) : '';
@@ -352,18 +406,31 @@ function getBossBattlePool() {
   ];
 }
 
-function startPractice(isBossBattle) { 
-  State.focusMode = !!isBossBattle;
+function startPractice(isBossBattle, isSurvival = false) { 
+  State.survivalMode = !!isSurvival;
+  State.focusMode = !isSurvival && !!isBossBattle;
+  State.lives = 3;
+  State.survivalRun = 0;
+  
   const bossTag = $('bossTag');
   if (bossTag) {
     bossTag.classList.toggle('hidden', !State.focusMode);
+  }
+  const survivalTag = $('survivalTag');
+  if (survivalTag) {
+    survivalTag.classList.toggle('hidden', !State.survivalMode);
   }
   
   const pool = State.focusMode ? getBossBattlePool() : getPool();
   if (!pool || pool.length === 0) return;
   
-  let selectedWords = State.focusMode ? pool.slice(0, State.wordsPerRound) : shuffleArray(pool).slice(0, State.wordsPerRound);
-  State.sessionWords = shuffleArray(selectedWords);
+  if (State.survivalMode) {
+    State.sessionWords = shuffleArray(pool);
+  } else {
+    let selectedWords = State.focusMode ? pool.slice(0, State.wordsPerRound) : shuffleArray(pool).slice(0, State.wordsPerRound);
+    State.sessionWords = shuffleArray(selectedWords);
+  }
+
   State.currentIndex = 0;
   State.results = [];
   State.currentStreak = 0;
@@ -399,6 +466,74 @@ function submitAnswer() {
     State.appData.attempts[State.activeUser][word] = { correct: 0, incorrect: 0 };
   }
   const att = State.appData.attempts[State.activeUser][word];
+
+  if (State.survivalMode) {
+    if (isCorrect) {
+      State.survivalRun++;
+      State.currentStreak++;
+      State.bestRoundStreak = Math.max(State.bestRoundStreak, State.survivalRun);
+      att.correct++;
+
+      let earned = 5;
+      let feedbackMsg = `Correct! +${earned} ฿ | Run: ${State.survivalRun} words! 🔥`;
+      if (State.survivalRun % 5 === 0) {
+        earned += 10;
+        feedbackMsg = `Milestone: ${State.survivalRun} words! +${earned} ฿ 🔥👑`;
+      }
+
+      State.appData.bounty[State.activeUser] = (State.appData.bounty[State.activeUser] || 0) + earned;
+      AudioSys.play('correct');
+      triggerCelebration(State.survivalRun % 5 === 0 ? 'mastered' : 'mini');
+
+      if (!State.appData.progress) State.appData.progress = {};
+      if (!State.appData.progress[State.activeUser]) State.appData.progress[State.activeUser] = [];
+      if (!State.appData.progress[State.activeUser].includes(word)) {
+        State.appData.progress[State.activeUser].push(word);
+      }
+      try { persistData(); } catch (e) { console.warn("Could not save progress", e); }
+      showFeedback(feedbackMsg, 'good');
+
+      const prevBest = State.appData.survivalHighScores[State.activeUser] || 0;
+      if (State.survivalRun > prevBest) {
+        State.appData.survivalHighScores[State.activeUser] = State.survivalRun;
+      }
+    } else {
+      State.lives--;
+      State.currentStreak = 0;
+      att.incorrect++;
+
+      const livesBox = $('livesContainer');
+      if (livesBox) {
+        livesBox.classList.remove('life-lost-anim');
+        void livesBox.offsetWidth;
+        livesBox.classList.add('life-lost-anim');
+      }
+
+      if (State.lives > 0) {
+        AudioSys.play('life-lost');
+        try { persistData(); } catch (e) { console.warn("Could not save progress", e); }
+        showFeedback(`Life lost! (Word was: ${word}). ${State.lives} ${State.lives === 1 ? 'life' : 'lives'} left! 💔`, 'warn');
+      } else {
+        AudioSys.play('gameover');
+        try { persistData(); } catch (e) { console.warn("Could not save progress", e); }
+        showFeedback(`GAME OVER! Final run: ${State.survivalRun} words.`, 'warn');
+      }
+    }
+
+    if (State.lives <= 0) {
+      endSurvivalRun();
+      return;
+    }
+
+    if (State.currentIndex >= State.sessionWords.length) {
+      State.sessionWords.push(...shuffleArray(getPool()));
+    }
+
+    updatePracticeUI();
+    if (State.autoSpeak) setTimeout(() => speakWord(State.sessionWords[State.currentIndex]), 300);
+    input.focus();
+    return;
+  }
 
   if (isCorrect) {
     State.currentStreak++;
@@ -493,9 +628,18 @@ function submitAnswer() {
     
     persistData();
     
+    if ($('resultsHeading')) $('resultsHeading').textContent = 'Round complete';
+    if ($('resultsSubheading')) $('resultsSubheading').textContent = 'A clear summary with exact score and overall spelling accuracy.';
+    if ($('scoreLabel')) $('scoreLabel').textContent = 'Exact score';
     if ($('exactScore')) $('exactScore').textContent = `${correctCount}/${total}`;
+    if ($('accuracyLabel')) $('accuracyLabel').textContent = 'Average accuracy';
     if ($('averageAccuracy')) $('averageAccuracy').textContent = `${accuracy}%`;
+    if ($('ratingLabel')) $('ratingLabel').textContent = 'Rating';
     if ($('roundRating')) $('roundRating').textContent = accuracy === 100 ? 'Perfect! 🌟' : accuracy >= 80 ? 'Great job! ✨' : 'Good effort! 👍';
+    
+    if ($('resultsLeaderboardBox')) $('resultsLeaderboardBox').classList.add('hidden');
+    if ($('retryBtn')) $('retryBtn').classList.remove('hidden');
+    if ($('retrySurvivalBtn')) $('retrySurvivalBtn').classList.add('hidden');
     
     const listElem = $('resultsList');
     if (listElem) {
@@ -511,6 +655,87 @@ function submitAnswer() {
 
     show('resultsView');
   }
+}
+
+function endSurvivalRun() {
+  const currentRun = State.survivalRun;
+  const prevBest = State.appData.survivalHighScores[State.activeUser] || 0;
+  const isNewRecord = currentRun > prevBest;
+  if (isNewRecord) {
+    State.appData.survivalHighScores[State.activeUser] = currentRun;
+    triggerCelebration('mastered');
+  }
+
+  const userMetrics = State.appData.metrics[State.activeUser];
+  if (userMetrics) {
+    userMetrics.bestStreak = Math.max(userMetrics.bestStreak || 0, currentRun);
+    userMetrics.rounds = (userMetrics.rounds || 0) + 1;
+  }
+
+  persistData();
+
+  if ($('resultsHeading')) $('resultsHeading').textContent = isNewRecord ? '👑 New Survival Record!' : '💀 Survival Run Over';
+  if ($('resultsSubheading')) {
+    $('resultsSubheading').textContent = isNewRecord 
+      ? `Incredible job, ${State.activeUser}! You set a brand new personal best run of ${currentRun} words!`
+      : `You spelled ${currentRun} words correctly before running out of lives!`;
+  }
+  if ($('scoreLabel')) $('scoreLabel').textContent = 'Words Spelled';
+  if ($('exactScore')) $('exactScore').textContent = currentRun;
+  if ($('accuracyLabel')) $('accuracyLabel').textContent = 'Personal Best';
+  if ($('averageAccuracy')) $('averageAccuracy').textContent = `${State.appData.survivalHighScores[State.activeUser]} words`;
+  if ($('ratingLabel')) $('ratingLabel').textContent = 'Run Rank';
+  if ($('roundRating')) $('roundRating').textContent = isNewRecord ? 'NEW RECORD! 👑' : currentRun >= 15 ? 'Pirate Legend! 🔥' : currentRun >= 8 ? 'Warrior! ⚔️' : 'Nice Attempt! 👍';
+
+  if ($('resultsLeaderboardBox')) {
+    $('resultsLeaderboardBox').classList.remove('hidden');
+    if ($('resultsPersonalBestNote')) {
+      $('resultsPersonalBestNote').textContent = `${State.activeUser}'s Record: ${State.appData.survivalHighScores[State.activeUser]} words`;
+    }
+    renderSurvivalLeaderboard('resultsLeaderboardList');
+  }
+
+  if ($('retryBtn')) $('retryBtn').classList.add('hidden');
+  if ($('retrySurvivalBtn')) $('retrySurvivalBtn').classList.remove('hidden');
+
+  const listElem = $('resultsList');
+  if (listElem) {
+    listElem.innerHTML = State.results.map((r, i) => {
+      const userAnswer = r.answer && r.answer.trim() ? r.answer : '(left blank)';
+      const tags = getWordTagsHTML(r.word);
+      return `<div style="padding: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div><strong>#${i + 1} ${r.word}</strong>: ${r.isCorrect ? '✅' : `❌ (you typed: <em>${userAnswer}</em>)`}</div>
+        <div class="heatmap-tags" style="margin: 0;">${tags}</div>
+      </div>`;
+    }).join('');
+  }
+
+  show('resultsView');
+}
+
+function renderSurvivalLeaderboard(targetId = 'survivalLeaderboardList') {
+  const container = $(targetId);
+  if (!container || !State.appData) return;
+
+  const users = ['George', 'Ben', 'Lucy', 'James'];
+  const scores = State.appData.survivalHighScores || {};
+  
+  const sorted = [...users].sort((a, b) => (scores[b] || 0) - (scores[a] || 0));
+  const medals = ['👑 1st', '🥈 2nd', '🥉 3rd', '4th'];
+
+  container.innerHTML = sorted.map((user, idx) => {
+    const score = scores[user] || 0;
+    const isCurrentUser = user === State.activeUser;
+    const isLeader = idx === 0 && score > 0;
+    return `
+      <div class="leaderboard-card ${isCurrentUser ? 'active-user' : ''} ${isLeader ? 'gold-leader' : ''}">
+        <div class="leaderboard-rank">${medals[idx]}</div>
+        <div class="leaderboard-avatar">${AVATARS[user] || '👤'}</div>
+        <div class="leaderboard-name"><strong>${user}</strong></div>
+        <div class="leaderboard-score">${score} <span class="tiny muted" style="font-size:0.75rem;">words</span></div>
+      </div>
+    `;
+  }).join('');
 }
 
 let synth = null;
@@ -936,8 +1161,11 @@ countButtons.forEach(btn => btn.addEventListener('click', () => { State.wordsPer
 if ($('toggleAutoSpeak')) $('toggleAutoSpeak').addEventListener('click', () => { State.autoSpeak = !State.autoSpeak; renderAll(); });
 if ($('newRoundBtn')) $('newRoundBtn').addEventListener('click', () => startPractice(false));
 if ($('focusRoundBtn')) $('focusRoundBtn').addEventListener('click', () => startPractice(true));
+if ($('survivalRoundBtn')) $('survivalRoundBtn').addEventListener('click', () => startPractice(false, true));
 if ($('startBtn')) $('startBtn').addEventListener('click', () => startPractice(false));
+if ($('startSurvivalBtn')) $('startSurvivalBtn').addEventListener('click', () => startPractice(false, true));
 if ($('retryBtn')) $('retryBtn').addEventListener('click', () => startPractice(false));
+if ($('retrySurvivalBtn')) $('retrySurvivalBtn').addEventListener('click', () => startPractice(false, true));
 if ($('checkBtn')) $('checkBtn').addEventListener('click', submitAnswer);
 if ($('sayWordBtn')) $('sayWordBtn').addEventListener('click', () => speakWord(State.sessionWords[State.currentIndex]));
 if ($('hearAgainBtn')) $('hearAgainBtn').addEventListener('click', () => speakWord(State.sessionWords[State.currentIndex]));
