@@ -354,6 +354,7 @@ function updatePracticeUI() {
   if ($('wordMetaTags')) {
     $('wordMetaTags').innerHTML = currentWord ? getWordTagsHTML(currentWord) : '';
   }
+  updateVoiceStatus('🔊 Voice ready');
 }
 
 function showFeedback(msg, type) {
@@ -828,7 +829,7 @@ function playAudioFallback(word, onEnded) {
     const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-GB&client=tw-ob&q=${encodeURIComponent(cleanWord)}`;
     fallbackAudioPlayer = new Audio(ttsUrl);
     
-    updateVoiceStatus(`🔊 Playing audio for "${cleanWord}"`);
+    updateVoiceStatus('🔊 Playing audio...');
     
     fallbackAudioPlayer.onended = () => {
       updateVoiceStatus('🔊 Click "Say word" to hear again');
@@ -851,7 +852,7 @@ function playAudioFallback(word, onEnded) {
           }
         }
       } catch (err) {}
-      updateVoiceStatus(`Spelling word: "${cleanWord}"`, true);
+      updateVoiceStatus('Audio unavailable. Click "Say word" to retry', true);
     };
 
     const playPromise = fallbackAudioPlayer.play();
@@ -863,7 +864,7 @@ function playAudioFallback(word, onEnded) {
     }
   } catch (err) {
     console.warn("Fallback audio initialization failed", err);
-    updateVoiceStatus(`Word: "${word}"`, true);
+    updateVoiceStatus('Audio error. Click "Say word" to retry', true);
   }
 }
 
@@ -916,7 +917,7 @@ function speakWord(word) {
 
       utterance.onstart = () => {
         speechStarted = true;
-        updateVoiceStatus(`🔊 Speaking "${cleanWord}"...`);
+        updateVoiceStatus('🔊 Speaking...');
       };
 
       utterance.onend = () => {
