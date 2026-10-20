@@ -738,44 +738,226 @@ function renderSurvivalLeaderboard(targetId = 'survivalLeaderboardList') {
   }).join('');
 }
 
+// --- Speech & Audio System with ChromeOS / Chromebook Compatibility ---
 let synth = null;
 let preferredVoice = null;
+let availableVoices = [];
+let voiceRetries = 0;
+window.activeUtterances = []; // Prevents Chromium V8 garbage collection bug
+let fallbackAudioPlayer = null;
+
+function updateVoiceStatus(text, isError = false) {
+  const elements = [$('voiceStatus'), $('voiceInitNotice')];
+  elements.forEach(el => {
+    if (el) {
+      el.textContent = text;
+      el.style.color = isError ? '#f87171' : 'var(--muted)';
+    }
+  });
+}
+
+function unlockAudioEngine() {
+  try {
+    if (window.speechSynthesis && window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+    if (AudioSys.ctx && AudioSys.ctx.state === 'suspended') {
+      AudioSys.ctx.resume();
+    }
+  } catch (e) { console.warn("Audio unlock error", e); }
+}
+window.addEventListener('click', unlockAudioEngine);
+window.addEventListener('keydown', unlockAudioEngine);
+window.addEventListener('touchstart', unlockAudioEngine);
+
+function selectBestVoice(voices) {
+  if (!voices || voices.length === 0) return null;
+  return voices.find(v => v.lang === 'en-GB' || v.lang === 'en_GB')
+      || voices.find(v => (v.name || '').toLowerCase().includes('united kingdom') || (v.name || '').toLowerCase().includes('uk english'))
+      || voices.find(v => (v.lang || '').startsWith('en'))
+      || voices[0];
+}
+
+function loadVoices() {
+  if (!synth) return;
+  try {
+    const voices = synth.getVoices();
+    if (voices && voices.length > 0) {
+      availableVoices = voices;
+      preferredVoice = selectBestVoice(voices);
+      const voiceName = preferredVoice ? preferredVoice.name : 'System default';
+      updateVoiceStatus(`🔊 Voice ready (${voiceName})`);
+      return true;
+    }
+  } catch (e) { console.warn("loadVoices error", e); }
+
+  if (voiceRetries < 15) {
+    voiceRetries++;
+    setTimeout(loadVoices, 250);
+  } else {
+    updateVoiceStatus('🔊 Voice ready (audio fallback active)');
+  }
+  return false;
+}
 
 function initSpeech() { 
   if (window.speechSynthesis) {
-    synth = window.speechSynthesis; 
-    const loadVoices = () => {
-      const voices = synth.getVoices();
-      // Seek out higher quality natural voices (Google, Premium macOS, etc.)
-      preferredVoice = voices.find(v => v.name.includes('Google UK English Female'))
-                    || voices.find(v => v.name.includes('Google UK English Male'))
-                    || voices.find(v => v.name.includes('Premium') && v.lang === 'en-GB')
-                    || voices.find(v => v.name.includes('Daniel') && v.lang === 'en-GB')
-                    || voices.find(v => v.lang === 'en-GB')
-                    || voices[0];
+    synth = window.speechSynthesis;
+    try {
+      synth.onvoiceschanged = () => {
+        loadVoices();
+      };
+    } catch (e) {}
+    loadVoices();
+  } else {
+    updateVoiceStatus('🔊 Voice ready (audio playback mode)');
+  }
+}
+
+// Seamless Audio Fallback using Google TTS or Dictionary pronunciation
+function playAudioFallback(word, onEnded) {
+  try {
+    if (fallbackAudioPlayer) {
+      fallbackAudioPlayer.pause();
+      fallbackAudioPlayer.currentTime = 0;
+    }
+    const cleanWord = (word || '').trim().toLowerCase();
+    if (!cleanWord) return;
+
+    // Use Google TTS web stream (reliable audio/mpeg for UK English)
+    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-GB&client=tw-ob&q=${encodeURIComponent(cleanWord)}`;
+    fallbackAudioPlayer = new Audio(ttsUrl);
+    
+    updateVoiceStatus(`🔊 Playing audio for "${cleanWord}"`);
+    
+    fallbackAudioPlayer.onended = () => {
+      updateVoiceStatus('🔊 Click "Say word" to hear again');
+      if (typeof onEnded === 'function') onEnded();
     };
-    loadVoices(); // Load immediately
-    if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadVoices; // Update when ready
-  } 
+    
+    fallbackAudioPlayer.onerror = async () => {
+      // Secondary fallback: Free Dictionary API MP3
+      try {
+        const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${cleanWord}`);
+        if (res.ok) {
+          const data = await res.json();
+          for (const p of data[0]?.phonetics || []) {
+            if (p.audio && p.audio.trim()) {
+              const dictAudio = new Audio(p.audio);
+              dictAudio.play().catch(() => {});
+              dictAudio.onended = () => updateVoiceStatus('🔊 Click "Say word" to hear again');
+              return;
+            }
+          }
+        }
+      } catch (err) {}
+      updateVoiceStatus(`Spelling word: "${cleanWord}"`, true);
+    };
+
+    const playPromise = fallbackAudioPlayer.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(err => {
+        console.warn("Audio fallback autoplay error", err);
+        updateVoiceStatus(`🔊 Press "Say word" to hear pronunciation`);
+      });
+    }
+  } catch (err) {
+    console.warn("Fallback audio initialization failed", err);
+    updateVoiceStatus(`Word: "${word}"`, true);
+  }
 }
 
 function speakWord(word) { 
-  if (!synth) return;
-  if (synth.speaking) synth.cancel();
-  const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = 'en-GB';
-  utterance.rate = 0.85;
-  if (preferredVoice) utterance.voice = preferredVoice;
-  synth.speak(utterance);
+  if (!word) return;
+  const cleanWord = word.trim().toLowerCase();
+
+  // If Web Speech API is not supported on this device, immediately use audio fallback
+  if (!synth) {
+    playAudioFallback(cleanWord);
+    return;
+  }
+
+  unlockAudioEngine();
+
+  // Cancel any ongoing speech
+  try {
+    if (synth.speaking || synth.pending) {
+      synth.cancel();
+    }
+  } catch (e) {}
+
+  // A small timeout avoids Chromium's cancel/speak race condition bug
+  setTimeout(() => {
+    try {
+      if (synth.paused) {
+        synth.resume();
+      }
+
+      const utterance = new SpeechSynthesisUtterance(cleanWord);
+      utterance.lang = 'en-GB';
+      utterance.rate = 0.85;
+      
+      // Ensure we have the latest voices
+      if (!preferredVoice && availableVoices.length > 0) {
+        preferredVoice = selectBestVoice(availableVoices);
+      }
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      }
+
+      let speechStarted = false;
+
+      // Retain in global array to prevent Chrome V8 garbage collection bug
+      window.activeUtterances.push(utterance);
+      const cleanup = () => {
+        const idx = window.activeUtterances.indexOf(utterance);
+        if (idx !== -1) window.activeUtterances.splice(idx, 1);
+      };
+
+      utterance.onstart = () => {
+        speechStarted = true;
+        updateVoiceStatus(`🔊 Speaking "${cleanWord}"...`);
+      };
+
+      utterance.onend = () => {
+        cleanup();
+        updateVoiceStatus('🔊 Click "Say word" to hear again');
+      };
+
+      utterance.onerror = (e) => {
+        cleanup();
+        console.warn("SpeechSynthesis error, falling back to audio:", e);
+        playAudioFallback(cleanWord);
+      };
+
+      // Watchdog timer: If Chromebook speech synthesis hangs without starting in 1.4s, use fallback
+      setTimeout(() => {
+        if (!speechStarted && window.activeUtterances.includes(utterance)) {
+          cleanup();
+          try { synth.cancel(); } catch (err) {}
+          console.warn("SpeechSynthesis stalled on device, using fallback audio");
+          playAudioFallback(cleanWord);
+        }
+      }, 1400);
+
+      synth.speak(utterance);
+    } catch (e) {
+      console.warn("Failed to speak via SpeechSynthesis, using fallback audio", e);
+      playAudioFallback(cleanWord);
+    }
+  }, 40);
 }
 
 async function speakWithContext(word) {
-  if (!synth) return;
-  speakWord(word); // Instantly say the word to prevent waiting on the API
+  if (!word) return;
+  const cleanWord = word.trim().toLowerCase();
   
-  let sentence = `The word is ${word}.`;
+  // Instantly say the word first
+  speakWord(cleanWord);
+  
+  let sentence = `The word is ${cleanWord}.`;
   try {
-    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${cleanWord}`);
     if (res.ok) {
       const data = await res.json();
       for (const m of data[0]?.meanings || []) {
@@ -785,16 +967,25 @@ async function speakWithContext(word) {
     }
   } catch (e) { console.warn("Could not fetch dictionary context", e); }
 
-  // Queue the sentence, then the word again
+  // Queue context sentence after a short delay
   setTimeout(() => {
-    const uSentence = new SpeechSynthesisUtterance(sentence);
-    const uWord = new SpeechSynthesisUtterance(word);
-    [uSentence, uWord].forEach(u => {
-      u.lang = 'en-GB'; u.rate = 0.85; 
-      if (preferredVoice) u.voice = preferredVoice;
-      synth.speak(u);
-    });
-  }, 500); // Small delay to allow the instant playback to finish
+    if (synth) {
+      try {
+        const uSentence = new SpeechSynthesisUtterance(sentence);
+        uSentence.lang = 'en-GB';
+        uSentence.rate = 0.85;
+        if (preferredVoice) uSentence.voice = preferredVoice;
+        window.activeUtterances.push(uSentence);
+        uSentence.onend = () => {
+          const idx = window.activeUtterances.indexOf(uSentence);
+          if (idx !== -1) window.activeUtterances.splice(idx, 1);
+        };
+        synth.speak(uSentence);
+      } catch (e) {
+        console.warn("Context speech error", e);
+      }
+    }
+  }, 1000);
 }
 
 function renderHeatmap() { 
@@ -1169,6 +1360,7 @@ if ($('retrySurvivalBtn')) $('retrySurvivalBtn').addEventListener('click', () =>
 if ($('checkBtn')) $('checkBtn').addEventListener('click', submitAnswer);
 if ($('sayWordBtn')) $('sayWordBtn').addEventListener('click', () => speakWord(State.sessionWords[State.currentIndex]));
 if ($('hearAgainBtn')) $('hearAgainBtn').addEventListener('click', () => speakWord(State.sessionWords[State.currentIndex]));
+if ($('testVoiceBtn')) $('testVoiceBtn').addEventListener('click', () => speakWord('Welcome to Grand Line spelling'));
 if ($('contextBtn')) $('contextBtn').addEventListener('click', () => speakWithContext(State.sessionWords[State.currentIndex]));
 if ($('refreshHeatmapBtn')) $('refreshHeatmapBtn').addEventListener('click', renderHeatmap);
 if ($('answerInput')) $('answerInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); } });
