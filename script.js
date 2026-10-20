@@ -770,17 +770,28 @@ function unlockAudioEngine() {
 window.addEventListener('click', unlockAudioEngine);
 window.addEventListener('keydown', unlockAudioEngine);
 window.addEventListener('touchstart', unlockAudioEngine);
+window.addEventListener('pointerdown', unlockAudioEngine);
 
 function selectBestVoice(voices) {
   if (!voices || voices.length === 0) return null;
-  return voices.find(v => v.lang === 'en-GB' || v.lang === 'en_GB')
-      || voices.find(v => (v.name || '').toLowerCase().includes('united kingdom') || (v.name || '').toLowerCase().includes('uk english'))
-      || voices.find(v => (v.lang || '').startsWith('en'))
-      || voices[0];
+  // Prioritize local offline voices on ChromeOS (localService: true) to eliminate network delays and filtering issues
+  const localEnGb = voices.find(v => (v.lang === 'en-GB' || v.lang === 'en_GB') && v.localService);
+  if (localEnGb) return localEnGb;
+
+  const anyEnGb = voices.find(v => (v.lang === 'en-GB' || v.lang === 'en_GB') || (v.name || '').toLowerCase().includes('united kingdom') || (v.name || '').toLowerCase().includes('uk english'));
+  if (anyEnGb) return anyEnGb;
+
+  const localEn = voices.find(v => (v.lang || '').startsWith('en') && v.localService);
+  if (localEn) return localEn;
+
+  const anyEn = voices.find(v => (v.lang || '').startsWith('en'));
+  if (anyEn) return anyEn;
+
+  return voices[0];
 }
 
 function loadVoices() {
-  if (!synth) return;
+  if (!synth) return false;
   try {
     const voices = synth.getVoices();
     if (voices && voices.length > 0) {
@@ -792,11 +803,12 @@ function loadVoices() {
     }
   } catch (e) { console.warn("loadVoices error", e); }
 
-  if (voiceRetries < 15) {
+  if (voiceRetries < 30) {
     voiceRetries++;
     setTimeout(loadVoices, 250);
   } else {
-    updateVoiceStatus('🔊 Voice ready (audio fallback active)');
+    // ChromeOS can still speak using system default even before getVoices() finishes populating
+    updateVoiceStatus('🔊 Voice ready (System default)');
   }
   return false;
 }
@@ -805,9 +817,8 @@ function initSpeech() {
   if (window.speechSynthesis) {
     synth = window.speechSynthesis;
     try {
-      synth.onvoiceschanged = () => {
-        loadVoices();
-      };
+      synth.addEventListener('voiceschanged', loadVoices);
+      synth.onvoiceschanged = loadVoices;
     } catch (e) {}
     loadVoices();
   } else {
@@ -815,64 +826,83 @@ function initSpeech() {
   }
 }
 
-// Seamless Audio Fallback using Google TTS or Dictionary pronunciation
-function playAudioFallback(word, onEnded) {
-  try {
-    if (fallbackAudioPlayer) {
+// Seamless Audio Fallback using Free Dictionary API or Google TTS with no-referrer
+async function playAudioFallback(word, onEnded) {
+  const cleanWord = (word || '').trim().toLowerCase();
+  if (!cleanWord) return;
+
+  // Cleanly release any existing audio instance to avoid stacking media cards in ChromeOS shelf
+  if (fallbackAudioPlayer) {
+    try {
       fallbackAudioPlayer.pause();
-      fallbackAudioPlayer.currentTime = 0;
-    }
-    const cleanWord = (word || '').trim().toLowerCase();
-    if (!cleanWord) return;
-
-    // Use Google TTS web stream (reliable audio/mpeg for UK English)
-    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-GB&client=tw-ob&q=${encodeURIComponent(cleanWord)}`;
-    fallbackAudioPlayer = new Audio(ttsUrl);
-    
-    updateVoiceStatus('🔊 Playing audio...');
-    
-    fallbackAudioPlayer.onended = () => {
-      updateVoiceStatus('🔊 Click "Say word" to hear again');
-      if (typeof onEnded === 'function') onEnded();
-    };
-    
-    fallbackAudioPlayer.onerror = async () => {
-      // Secondary fallback: Free Dictionary API MP3
-      try {
-        const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${cleanWord}`);
-        if (res.ok) {
-          const data = await res.json();
-          for (const p of data[0]?.phonetics || []) {
-            if (p.audio && p.audio.trim()) {
-              const dictAudio = new Audio(p.audio);
-              dictAudio.play().catch(() => {});
-              dictAudio.onended = () => updateVoiceStatus('🔊 Click "Say word" to hear again');
-              return;
-            }
-          }
-        }
-      } catch (err) {}
-      updateVoiceStatus('Audio unavailable. Click "Say word" to retry', true);
-    };
-
-    const playPromise = fallbackAudioPlayer.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(err => {
-        console.warn("Audio fallback autoplay error", err);
-        updateVoiceStatus(`🔊 Press "Say word" to hear pronunciation`);
-      });
-    }
-  } catch (err) {
-    console.warn("Fallback audio initialization failed", err);
-    updateVoiceStatus('Audio error. Click "Say word" to retry', true);
+      fallbackAudioPlayer.removeAttribute('src');
+      fallbackAudioPlayer.load();
+    } catch (e) {}
+    fallbackAudioPlayer = null;
   }
+
+  updateVoiceStatus('🔊 Playing audio...');
+
+  const playAudioUrl = (audioUrl) => {
+    return new Promise((resolve, reject) => {
+      try {
+        const audio = new Audio();
+        audio.referrerPolicy = 'no-referrer';
+        audio.crossOrigin = 'anonymous';
+        fallbackAudioPlayer = audio;
+
+        audio.onended = () => {
+          updateVoiceStatus('🔊 Click "Say word" to hear again');
+          if (typeof onEnded === 'function') onEnded();
+          resolve();
+        };
+
+        audio.onerror = (err) => {
+          reject(err);
+        };
+
+        audio.src = audioUrl;
+        const p = audio.play();
+        if (p !== undefined) {
+          p.then(resolve).catch(reject);
+        }
+      } catch (err) {
+        reject(err);
+      }
+    });
+  };
+
+  // 1. Try Free Dictionary API human MP3 pronunciation first
+  try {
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanWord)}`);
+    if (res.ok) {
+      const data = await res.json();
+      for (const p of data[0]?.phonetics || []) {
+        if (p.audio && p.audio.trim()) {
+          await playAudioUrl(p.audio.trim());
+          return;
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 2. Secondary fallback: Google TTS with no-referrer
+  try {
+    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-GB&client=tw-ob&q=${encodeURIComponent(cleanWord)}`;
+    await playAudioUrl(ttsUrl);
+    return;
+  } catch (err) {
+    console.warn("Fallback audio playback failed:", err);
+  }
+
+  updateVoiceStatus('Audio unavailable. Click "Say word" to retry', true);
 }
 
 function speakWord(word) { 
   if (!word) return;
   const cleanWord = word.trim().toLowerCase();
 
-  // If Web Speech API is not supported on this device, immediately use audio fallback
+  // If Web Speech API is not supported on this device
   if (!synth) {
     playAudioFallback(cleanWord);
     return;
@@ -880,14 +910,16 @@ function speakWord(word) {
 
   unlockAudioEngine();
 
-  // Cancel any ongoing speech
+  // If ongoing speech exists, cancel cleanly
+  let hadActiveSpeech = false;
   try {
     if (synth.speaking || synth.pending) {
+      hadActiveSpeech = true;
       synth.cancel();
     }
   } catch (e) {}
 
-  // A small timeout avoids Chromium's cancel/speak race condition bug
+  // Allow Chromium's IPC thread 80ms to clear cancel state to avoid 'interrupted' race condition
   setTimeout(() => {
     try {
       if (synth.paused) {
@@ -898,7 +930,7 @@ function speakWord(word) {
       utterance.lang = 'en-GB';
       utterance.rate = 0.85;
       
-      // Ensure we have the latest voices
+      // Ensure we pick the best voice
       if (!preferredVoice && availableVoices.length > 0) {
         preferredVoice = selectBestVoice(availableVoices);
       }
@@ -907,16 +939,25 @@ function speakWord(word) {
       }
 
       let speechStarted = false;
+      let watchdogTimer = null;
 
-      // Retain in global array to prevent Chrome V8 garbage collection bug
+      // Keep utterance in activeUtterances array to prevent Chromium V8 garbage collection
       window.activeUtterances.push(utterance);
       const cleanup = () => {
+        if (watchdogTimer) {
+          clearTimeout(watchdogTimer);
+          watchdogTimer = null;
+        }
         const idx = window.activeUtterances.indexOf(utterance);
         if (idx !== -1) window.activeUtterances.splice(idx, 1);
       };
 
       utterance.onstart = () => {
         speechStarted = true;
+        if (watchdogTimer) {
+          clearTimeout(watchdogTimer);
+          watchdogTimer = null;
+        }
         updateVoiceStatus('🔊 Speaking...');
       };
 
@@ -927,26 +968,36 @@ function speakWord(word) {
 
       utterance.onerror = (e) => {
         cleanup();
-        console.warn("SpeechSynthesis error, falling back to audio:", e);
+        // Crucial fix: 'interrupted' and 'canceled' occur normally on synth.cancel().
+        // Do NOT trigger audio fallback or display errors for routine cancellations!
+        if (e.error === 'interrupted' || e.error === 'canceled') {
+          return;
+        }
+        console.warn("SpeechSynthesis error:", e.error, e);
         playAudioFallback(cleanWord);
       };
 
-      // Watchdog timer: If Chromebook speech synthesis hangs without starting in 1.4s, use fallback
-      setTimeout(() => {
+      // Generous 6-second watchdog: only fallback if Chromebook engine completely froze
+      watchdogTimer = setTimeout(() => {
         if (!speechStarted && window.activeUtterances.includes(utterance)) {
           cleanup();
           try { synth.cancel(); } catch (err) {}
-          console.warn("SpeechSynthesis stalled on device, using fallback audio");
+          console.warn("SpeechSynthesis timed out, using fallback audio");
           playAudioFallback(cleanWord);
         }
-      }, 1400);
+      }, 6000);
+
+      // Pre-flight unpause check before speaking
+      if (synth.paused) {
+        try { synth.resume(); } catch (err) {}
+      }
 
       synth.speak(utterance);
     } catch (e) {
-      console.warn("Failed to speak via SpeechSynthesis, using fallback audio", e);
+      console.warn("SpeechSynthesis speak invocation failed, using audio fallback", e);
       playAudioFallback(cleanWord);
     }
-  }, 40);
+  }, hadActiveSpeech ? 80 : 15);
 }
 
 async function speakWithContext(word) {
@@ -981,12 +1032,16 @@ async function speakWithContext(word) {
           const idx = window.activeUtterances.indexOf(uSentence);
           if (idx !== -1) window.activeUtterances.splice(idx, 1);
         };
+        uSentence.onerror = () => {
+          const idx = window.activeUtterances.indexOf(uSentence);
+          if (idx !== -1) window.activeUtterances.splice(idx, 1);
+        };
         synth.speak(uSentence);
       } catch (e) {
         console.warn("Context speech error", e);
       }
     }
-  }, 1000);
+  }, 1200);
 }
 
 function renderHeatmap() { 
